@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>WELLSENSE — Intervention Ticket</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --navy:#0D1B35; --navy2:#1A2E54; --navy3:#243B6A;
+  --orange:#F97316; --orange2:#EA580C;
+  --muted:#6B7A90; --line:#D4D9E2;
+  --red:#B91C1C; --red2:#DC2626;
+  --amber:#C2410C; --amber2:#D97706;
+  --green:#15803D; --bg:#F0F3F8;
+  --mono:'IBM Plex Mono','Consolas',monospace;
+  --sans:'IBM Plex Sans','Segoe UI',sans-serif;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg); font-family:var(--sans); color:#1F2937; font-size:10px; line-height:1.4; }
+
+/* Screen-only controls */
+.toolbar{
+  position:sticky; top:0; z-index:100;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 20px; background:#0D1B35; color:#fff;
+  border-bottom:3px solid var(--orange);
+}
+.toolbar .tb-left{ display:flex; align-items:center; gap:12px; }
+.toolbar .tb-title{ font-weight:700; font-size:13px; letter-spacing:.02em; }
+.toolbar .tb-fn{ font-family:var(--mono); font-size:10.5px; color:#F97316; padding:4px 8px; background:rgba(249,115,22,0.1); border:1px solid rgba(249,115,22,0.3); border-radius:4px; }
+.toolbar button{
+  padding:8px 16px; background:var(--orange); color:#fff; border:none; border-radius:4px;
+  font-weight:700; font-size:11px; cursor:pointer; letter-spacing:.05em;
+}
+.toolbar button.secondary{ background:transparent; border:1px solid #334155; color:#CBD5E1; }
+.toolbar button:hover{ opacity:0.9; }
+
+/* Page (A4 sized) */
+.page{
+  width:210mm; min-height:297mm;
+  margin:10mm auto;
+  background:#fff;
+  box-shadow:0 12px 48px rgba(13,27,53,0.18);
+  padding:8mm 9mm;
+  position:relative;
+  display:flex; flex-direction:column; gap:4px;
+  overflow:hidden;
+}
+.stripe{ position:absolute; top:0; left:0; right:0; height:5px; z-index:10; }
+.stripe.critical{ background:linear-gradient(90deg,var(--red) 0%, #7F1D1D 100%); }
+.stripe.warning{ background:linear-gradient(90deg,var(--amber2) 0%, var(--amber) 100%); }
+
+.bg-wm{
+  position:absolute; right:10mm; bottom:35mm;
+  font-family:var(--sans); font-size:72px; font-weight:800;
+  color:rgba(13,27,53,0.03); letter-spacing:4px; text-transform:uppercase;
+  transform:rotate(-20deg); pointer-events:none; z-index:0; user-select:none; white-space:nowrap;
+}
+
+/* Header */
+.t-head{
+  display:grid; grid-template-columns:auto 1fr auto auto;
+  align-items:center; gap:10px;
+  padding-bottom:6px; border-bottom:2px solid var(--navy); flex-shrink:0;
+}
+.brand{ display:flex; align-items:center; gap:8px; }
+.logo{
+  width:34px; height:34px; border-radius:5px;
+  background:linear-gradient(135deg,var(--orange) 0%, #9A3412 100%);
+  color:#fff; display:grid; place-items:center;
+  font-weight:900; font-size:15px; font-family:var(--sans);
+}
+.wordmark{ font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--navy); }
+.wordmark span{ color:var(--orange); }
+.sub{ font-size:7.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+.t-meta-center{ text-align:center; }
+.tid{ font-family:var(--mono); font-size:10px; font-weight:700; color:var(--navy); letter-spacing:.03em; }
+.tsev{ font-size:7.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+.t-meta-right{ font-size:8.5px; color:var(--navy2); text-align:right; line-height:1.5; }
+.qr-box{
+  width:42px; height:42px; border:1.5px solid var(--navy); border-radius:4px;
+  display:grid; place-items:center; font-size:8px; color:var(--navy2); font-family:var(--mono);
+}
+
+/* Severity banner */
+.sev-banner{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 10px; border-radius:4px; margin:2px 0 4px 0;
+  font-weight:700; font-size:11px; letter-spacing:.03em; color:#fff;
+}
+.sev-banner.critical{ background:linear-gradient(90deg,var(--red) 0%, #7F1D1D 100%); }
+.sev-banner.warning{ background:linear-gradient(90deg,var(--amber2) 0%, var(--amber) 100%); }
+.sev-banner .well-id{ font-family:var(--mono); font-size:14px; font-weight:800; letter-spacing:.04em; }
+.sev-banner .ts{ font-size:8.5px; opacity:.85; font-family:var(--mono); }
+
+/* Info grid */
+.info-grid{
+  display:grid; grid-template-columns:repeat(6,1fr); gap:3px;
+  margin:3px 0;
+}
+.ic{ padding:4px 6px; border:1px solid var(--line); border-radius:2px; background:#F8FAFC; }
+.ic .k{ font-size:7px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:600; }
+.ic .v{ font-size:11px; font-weight:700; color:var(--navy); margin-top:1px; font-family:var(--mono); }
+
+/* Section divider */
+.sdiv{
+  margin:4px 0 2px 0; padding:3px 8px;
+  font-size:8.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--navy); background:linear-gradient(90deg,rgba(249,115,22,0.15) 0%,rgba(249,115,22,0) 100%);
+  border-left:3px solid var(--orange);
+}
+
+/* Dual-model panel */
+.dual-panel{ display:grid; grid-template-columns:1fr 1fr 0.9fr; gap:4px; }
+.model-card{ border:1px solid var(--line); border-radius:3px; padding:6px 8px; background:#FAFBFD; }
+.model-card.critical{ border-color:#FECACA; background:#FFF8F8; }
+.model-card.warning{ border-color:#FED7AA; background:#FFFBF5; }
+.mc-label{ font-size:7.5px; font-weight:700; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+.mc-engine{ font-size:8px; color:var(--navy2); margin-bottom:3px; font-family:var(--mono); }
+.mc-score{ font-size:26px; font-weight:800; font-family:var(--mono); line-height:1; color:var(--red); }
+.model-card.warning .mc-score{ color:var(--amber2); }
+.mc-detail{ font-size:8px; color:var(--navy2); margin-top:2px; }
+.th-bar{ position:relative; height:5px; background:#F1F5F9; border-radius:3px; margin-top:4px; overflow:hidden; }
+.th-bar .fill{ height:100%; background:var(--red); }
+.model-card.warning .th-bar .fill{ background:var(--amber2); }
+.th-bar .tw{ position:absolute; left:65%; top:-2px; bottom:-2px; width:1px; background:var(--amber2); }
+.th-bar .tc{ position:absolute; left:85%; top:-2px; bottom:-2px; width:1px; background:var(--red); }
+.th-labels{ display:flex; justify-content:space-between; font-size:6.5px; font-family:var(--mono); color:var(--muted); margin-top:2px; }
+.composite-card{
+  background:linear-gradient(135deg,#FFF8F8 0%,#FFE4E6 100%);
+  border:1.5px solid var(--red); border-radius:3px; padding:6px 8px; text-align:center;
+}
+.composite-card.warning{ background:linear-gradient(135deg,#FFFBF5 0%,#FED7AA 100%); border-color:var(--amber2); }
+.cc-label{ font-size:7.5px; font-weight:700; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+.cc-verdict{ font-size:18px; font-weight:800; color:var(--red); letter-spacing:.03em; margin-top:2px; }
+.composite-card.warning .cc-verdict{ color:var(--amber2); }
+.cc-sub{ font-size:7.5px; color:var(--navy2); margin-top:3px; }
+.cc-action{ font-size:12px; font-weight:800; color:var(--red); margin-top:4px; padding-top:3px; border-top:1px dashed var(--red); letter-spacing:.04em; }
+.composite-card.warning .cc-action{ color:var(--amber2); border-top-color:var(--amber2); }
+
+/* Horizon grid */
+.horizon{ margin-top:2px; }
+.horizon-grid{ display:grid; grid-template-columns:60px 1fr 50px 60px; gap:3px; align-items:center; }
+.hg-head{ font-size:7.5px; font-weight:700; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; padding:2px 0; }
+.hg-t{ font-size:9px; font-family:var(--mono); font-weight:600; color:var(--navy); }
+.hg-track{ position:relative; height:5px; background:#F1F5F9; border-radius:3px; overflow:hidden; }
+.hg-fill{ height:100%; }
+.hg-fill.critical{ background:linear-gradient(90deg,var(--red2),var(--red)); }
+.hg-fill.warning{ background:linear-gradient(90deg,var(--amber2),var(--amber)); }
+.hg-fill.normal{ background:linear-gradient(90deg,#22C55E,#15803D); }
+.hg-tw{ position:absolute; left:65%; top:-2px; bottom:-2px; width:1px; background:var(--amber2); }
+.hg-tc{ position:absolute; left:85%; top:-2px; bottom:-2px; width:1px; background:var(--red); }
+.hg-val{ font-size:9.5px; font-weight:700; font-family:var(--mono); text-align:right; }
+.hg-val.critical{ color:var(--red); }
+.hg-val.warning{ color:var(--amber2); }
+.hg-val.normal{ color:var(--green); }
+.hg-sev{ font-size:8px; font-weight:700; text-align:center; padding:2px 4px; border-radius:2px; }
+.hg-sev.critical{ background:rgba(220,38,38,.1); color:var(--red); border:1px solid rgba(220,38,38,.3); }
+.hg-sev.warning{ background:rgba(249,115,22,.1); color:var(--amber2); border:1px solid rgba(249,115,22,.3); }
+.hg-sev.normal{ background:rgba(29,158,117,.1); color:var(--green); border:1px solid rgba(29,158,117,.3); }
+
+/* Tables */
+.t{ width:100%; border-collapse:collapse; font-size:9px; }
+.t th{ background:#F8FAFC; padding:4px 6px; text-align:left; font-weight:700; color:var(--navy); border-bottom:1.5px solid var(--navy); font-size:8px; letter-spacing:.05em; text-transform:uppercase; }
+.t td{ padding:4px 6px; border-bottom:1px solid var(--line); }
+.flag{ display:inline-block; padding:2px 6px; border-radius:2px; font-size:8px; font-weight:700; font-family:var(--mono); }
+.flag.lo{ color:var(--red); background:rgba(220,38,38,.08); border:1px solid rgba(220,38,38,.3); }
+.flag.hi{ color:var(--amber2); background:rgba(249,115,22,.08); border:1px solid rgba(249,115,22,.3); }
+
+/* IF box */
+.if-box{ display:grid; grid-template-columns:repeat(4,1fr); gap:3px; }
+.if-c{ padding:4px 6px; background:#F8FAFC; border:1px solid var(--line); border-radius:2px; }
+.if-c.anomaly{ background:#FFF8F8; border-color:#FECACA; }
+.if-c .k{ font-size:7px; color:var(--muted); text-transform:uppercase; font-weight:600; letter-spacing:.06em; }
+.if-c .v{ font-size:11px; font-weight:800; font-family:var(--mono); color:var(--red); }
+
+/* Sensors grid */
+.sensors{ display:grid; grid-template-columns:repeat(5,1fr); gap:3px; }
+.s{ padding:5px 6px; border:1px solid var(--line); border-radius:2px; background:#F8FAFC; position:relative; }
+.s.hot{ background:#FFF8F8; border-color:#FECACA; }
+.s.hot .sv{ color:var(--red); }
+.s .dot{ position:absolute; top:5px; right:5px; width:5px; height:5px; background:#CBD5E1; border-radius:50%; }
+.s.hot .dot{ background:var(--red); }
+.sk{ font-size:7px; font-weight:700; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+.sv{ font-size:14px; font-weight:800; color:var(--navy); margin-top:2px; font-family:var(--mono); }
+.su{ font-size:8px; font-weight:500; color:var(--muted); margin-left:2px; font-family:var(--sans); }
+
+/* Reasoning */
+.reasoning{
+  padding:6px 10px; background:#F8FAFC; border-left:3px solid var(--navy);
+  border-radius:0 3px 3px 0; font-size:9px; line-height:1.5; color:var(--navy2);
+}
+
+/* Rec box */
+.recbox{
+  display:grid; grid-template-columns:140px 1fr; gap:8px; padding:6px 10px;
+  background:linear-gradient(90deg,#FFF8F8 0%,#FAFBFD 100%);
+  border:1px solid var(--line); border-radius:3px;
+}
+.recbox.warning{ background:linear-gradient(90deg,#FFFBF5 0%,#FAFBFD 100%); }
+.rlbl{ font-size:7px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+.recpill{ display:inline-block; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:800; letter-spacing:.04em; margin-top:2px; }
+.recpill.shutdown{ background:var(--red); color:#fff; }
+.recpill.inspect{ background:var(--amber2); color:#fff; }
+.recpill.adjust{ background:var(--orange); color:#fff; }
+.rdet{ font-size:9px; line-height:1.55; color:var(--navy2); }
+
+/* RBAC table */
+.rbac{ width:100%; border-collapse:collapse; font-size:8.5px; }
+.rbac th{ background:#F8FAFC; padding:4px 6px; border-bottom:1.5px solid var(--navy); font-weight:700; font-size:7.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--navy); }
+.rbac td{ padding:6px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.rbac-tier{ font-size:7px; color:var(--muted); font-family:var(--mono); }
+.sig-line{ display:block; height:1px; background:var(--navy); width:70%; margin:8px 0 2px 0; }
+.chk{ display:inline-block; width:9px; height:9px; border:1px solid var(--navy); margin-right:2px; vertical-align:middle; }
+.decision-cell{ font-size:8px; font-weight:600; }
+
+/* Audit footer */
+.audit-footer{
+  margin-top:auto; padding-top:6px; border-top:1px solid var(--line);
+  display:flex; justify-content:space-between; align-items:flex-end;
+  font-size:7.5px; color:var(--muted); letter-spacing:.05em; text-transform:uppercase;
+  font-family:var(--mono);
+}
+
+/* Print handling */
+@page{ size:A4; margin:0; }
+@media print{
+  .toolbar{ display:none !important; }
+  html,body{ background:#fff; }
+  .page{ margin:0; box-shadow:none; page-break-after:always; }
+}
+</style>
+</head>
+<body>
+
+<!-- Screen-only toolbar -->
+<div class="toolbar" id="toolbar">
+  <div class="tb-left">
+    <div class="tb-title">WELLSENSE · Intervention Ticket</div>
+    <div class="tb-fn" id="tbFn">—</div>
+  </div>
+  <div>
+    <button class="secondary" onclick="window.close()">Close</button>
+    <button onclick="window.print()">🖨️ Save as PDF</button>
+  </div>
+</div>
+
+<!-- Ticket canvas -->
+<div id="ticketCanvas"></div>
+
+<script src="../app.js"></script>
+<script>
+/* Parameterized renderer — reads ?ticketId=... from URL */
+(function(){
+    const params = new URLSearchParams(window.location.search);
+    const tid    = params.get('ticketId');
+    const auto   = params.get('autoprint') === '1';
+
+    const ticket = TICKETS.find(t => t.ticketId === tid) || TICKETS[0];
+    if(!ticket){
+        document.getElementById('ticketCanvas').innerHTML = '<div style="padding:40px;text-align:center;color:#DC2626;font-weight:700">Ticket not found in data store.</div>';
+        return;
+    }
+
+    const isCrit = ticket.severity === 'CRITICAL';
+    const sevKey = isCrit ? 'critical' : 'warning';
+    const sevEmoji = isCrit ? '🔴' : '🟠';
+    const sevLabel = isCrit ? 'CRITICAL' : 'WARNING';
+    const triggerLabel = (ticket.source === 'RT_LSTM')
+        ? (isCrit ? 'RT-LSTM + IF Anomaly (Dual Trigger)' : 'RT-LSTM Threshold')
+        : 'BD-KMeans Cluster Migration';
+
+    /* Generate filename and expose in toolbar */
+    const fn = buildInterventionFilename(ticket);
+    document.getElementById('tbFn').textContent = fn;
+    document.title = fn.replace('.pdf','');
+
+    /* Short form UUID for INT ticket ID reference */
+    const tsMatch = ticket.timestamp.match(/(\d{4})-(\d{2})-(\d{2})/);
+    const dateCore = tsMatch ? `${tsMatch[1]}-${tsMatch[2]}-${tsMatch[3]}` : '2026-04-16';
+    const intRef = `INT-${dateCore}-${ticket.wellId.replace('BKP-','')}-${String(ticket.cycleNumber).padStart(3,'0')}`;
+
+    /* Build horizon data from trend + extrapolation */
+    const t = ticket.trend || [];
+    const base = ticket.pLPO;
+    const horizonData = [
+        { h:'T + 4h',  v: Math.min(0.99, base * (isCrit ? 0.96 : 0.96)) },
+        { h:'T + 8h',  v: Math.min(0.99, base * (isCrit ? 1.00 : 1.03)) },
+        { h:'T + 12h', v: Math.min(0.99, base * (isCrit ? 1.03 : 1.08)) },
+        { h:'T + 18h', v: Math.min(0.99, base * (isCrit ? 0.97 : 0.93)) },
+        { h:'T + 24h', v: Math.min(0.99, base * (isCrit ? 0.91 : 0.78)) },
+    ];
+    const hzSevKey = v => v >= 0.85 ? 'critical' : (v >= 0.65 ? 'warning' : 'normal');
+    const hzSevLabel = v => v >= 0.85 ? 'CRIT' : (v >= 0.65 ? 'WARN' : 'NORM');
+
+    /* Well lookup for platform etc. */
+    const well = WELLS.find(w => w.wellId === ticket.wellId) || {};
+
+    /* Helper: sensor grid with hot flags for deviating channels */
+    const hotSet = new Set(ticket.topContributors.map(c=>c.name));
+    const s = well.sensors || {};
+    const senHtml = [
+        { num:'①', key:'WHP',      v:s.whp,      u:'psi',     hot:hotSet.has('WHP') },
+        { num:'②', key:'WHT',      v:s.wht,      u:'°C',      hot:hotSet.has('WHT') },
+        { num:'③', key:'FTHP',     v:s.fthp,     u:'psi',     hot:hotSet.has('FTHP') },
+        { num:'④', key:'Flow',     v:s.flow,     u:'bpd',     hot:hotSet.has('Flow Rate') || hotSet.has('Flow') },
+        { num:'⑤', key:'Choke',    v:s.choke,    u:'%',       hot:hotSet.has('Choke') || hotSet.has('Choke Position') },
+        { num:'⑥', key:'Annular',  v:s.annular,  u:'psi',     hot:hotSet.has('Annular') },
+        { num:'⑦', key:'GL Rate',  v:s.glInjRate,u:'MMSCFD',  hot:hotSet.has('GL Inj. Rate') || hotSet.has('GL Inj Rate') },
+        { num:'⑧', key:'GL Pres.', v:s.glInjPres,u:'psi',     hot:hotSet.has('GL Inj Pres') },
+        { num:'⑨', key:'GOR/BSW',  v:s.waterCut, u:'%WC',     hot:hotSet.has('Water Cut') },
+        { num:'⑩', key:'MP Ratio', v:s.mpRatio,  u:'',        hot:hotSet.has('MP Ratio') },
+    ].map(x => `
+        <div class="s ${x.hot?'hot':''}"><div class="dot"></div>
+          <div class="sk">${x.num} ${x.key}</div>
+          <div class="sv">${typeof x.v === 'number' ? x.v.toLocaleString('en-US',{maximumFractionDigits:2}) : x.v}<span class="su">${x.u}</span></div>
+        </div>`).join('');
+
+    /* Format deviation */
+    const fmtDev = d => (d >= 0 ? '+' : '') + d.toFixed(1) + '%';
+
+    /* RBAC rows with decision marks */
+    const rbacRows = ticket.approvalChain.map(r => {
+        const dec = r.decision;
+        const mark = opt => dec === opt ? 'background:var(--navy)' : '';
+        return `
+        <tr>
+          <td><b>${r.role}</b><br><span class="rbac-tier">${r.tier||''}</span></td>
+          <td>${r.name}<br><span class="rbac-tier">${r.nik||''}</span></td>
+          <td><span class="sig-line"></span></td>
+          <td style="font-family:var(--mono);font-size:8px">${r.at || '____ / ____'}</td>
+          <td class="decision-cell">
+            <span class="chk" style="${mark('APPROVE')}"></span>APPROVE &nbsp;
+            <span class="chk" style="${mark('REJECT')}"></span>REJECT &nbsp;
+            <span class="chk" style="${mark('ESCALATE')}"></span>ESCALATE
+          </td>
+        </tr>`;
+    }).join('');
+
+    /* Render page */
+    document.getElementById('ticketCanvas').innerHTML = `
+    <div class="page">
+      <div class="stripe ${sevKey}"></div>
+      <div class="bg-wm">WELLSENSE</div>
+
+      <div class="t-head">
+        <div class="brand">
+          <div class="logo">W</div>
+          <div>
+            <div class="wordmark">WELL<span>SENSE</span></div>
+            <div class="sub">Intervention Ticket · Auto-Generated · ${dateCore}</div>
+          </div>
+        </div>
+        <div class="t-meta-center">
+          <div class="tid">${intRef}</div>
+          <div class="tsev">Ticket ID · Sequential Ref</div>
+        </div>
+        <div class="t-meta-right">
+          <div><b>Trigger</b>: ${triggerLabel}</div>
+          <div><b>Cycle</b>: ${ticket.cycleNumber} of 5 &nbsp;·&nbsp; <b>Shift</b>: ${ticket.shift||'—'}</div>
+          <div><b>Field</b>: Bekapai · Mahakam Block</div>
+        </div>
+        <div class="qr-box">QR</div>
+      </div>
+
+      <div class="sev-banner ${sevKey}">
+        <span>${sevEmoji} SEVERITY: ${sevLabel} &nbsp;·&nbsp; ${isCrit ? 'RT-LSTM + ISOLATION FOREST DUAL TRIGGER' : 'RT-LSTM THRESHOLD TRIGGER'}</span>
+        <div style="text-align:right">
+          <div class="well-id">${ticket.wellId}</div>
+          <div class="ts">${ticket.timestamp}</div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="ic"><div class="k">Well ID</div><div class="v">${ticket.wellId}</div></div>
+        <div class="ic"><div class="k">Zone / Field</div><div class="v">${ticket.zone} · Bekapai</div></div>
+        <div class="ic"><div class="k">Platform</div><div class="v">${well.platform||'—'}</div></div>
+        <div class="ic"><div class="k">K-Means Cluster</div><div class="v" style="color:${isCrit?'var(--red)':'var(--amber2)'}">${clusterLabel(ticket.clusterLabel)}</div></div>
+        <div class="ic"><div class="k">Completion</div><div class="v">Gas-Lift</div></div>
+        <div class="ic"><div class="k">UUID4 Ref</div><div class="v" style="font-size:7px">${ticket.ticketId.slice(0,18)}</div></div>
+      </div>
+
+      <div class="sdiv">Dual-Model AI Score — Isolation Forest + LSTM v1.0</div>
+      <div class="dual-panel">
+        <div class="model-card ${sevKey}">
+          <div class="mc-label">Model 1 — Real-Time Anomaly Detection</div>
+          <div class="mc-engine">Isolation Forest · iForest v0.3 · 100 estimators · window 30 min</div>
+          <div class="mc-score">${ticket.ifScore.toFixed(3)}</div>
+          <div class="mc-detail">Contamination: 0.05 &nbsp;·&nbsp; Threshold: −0.500 &nbsp;·&nbsp; <b style="color:${isCrit?'var(--red)':'var(--amber2)'}">ANOMALY</b></div>
+          <div class="th-bar" style="margin-top:5px">
+            <div class="fill" style="width:${Math.min(100,Math.abs(ticket.ifScore)*100).toFixed(1)}%"></div>
+            <div class="tw"></div><div class="tc"></div>
+          </div>
+          <div class="th-labels"><span>−1.00</span><span>−0.65</span><span>−0.50 THR</span><span>0.00</span></div>
+        </div>
+        <div class="model-card ${sevKey}">
+          <div class="mc-label">Model 2 — Temporal LPO Prediction</div>
+          <div class="mc-engine">LSTM Stacked · 2L×128U · seq_len 24 · dropout 0.2</div>
+          <div class="mc-score">${ticket.pLPO.toFixed(3)}</div>
+          <div class="mc-detail">Horizon: 24h &nbsp;·&nbsp; ${isCrit?'Threshold ≥ 0.85 CRITICAL':'0.65 ≤ P &lt; 0.85 WARNING'} &nbsp;·&nbsp; <b style="color:${isCrit?'var(--red)':'var(--amber2)'}">${sevLabel}</b></div>
+          <div class="th-bar" style="margin-top:5px">
+            <div class="fill" style="width:${(ticket.pLPO*100).toFixed(1)}%"></div>
+            <div class="tw"></div><div class="tc"></div>
+          </div>
+          <div class="th-labels"><span>0.00</span><span>0.65 WRN</span><span>0.85 CRIT</span><span>1.00</span></div>
+        </div>
+        <div class="composite-card ${sevKey}">
+          <div class="cc-label">Composite Verdict</div>
+          <div class="cc-verdict">${sevLabel}</div>
+          <div class="cc-sub">${isCrit ? 'Both models triggered · Dual-path LPO probability confirmed' : 'IF anomalous · LSTM in warning band · Monitor closely'}</div>
+          <div class="cc-action">${ticket.recommendation.toUpperCase()}</div>
+        </div>
+      </div>
+
+      <div class="horizon">
+        <div class="sdiv">LSTM P(LPO) Prediction Horizon · Next 24 Hours from Detection Time</div>
+        <div class="horizon-grid">
+          <div class="hg-head">Horizon</div>
+          <div class="hg-head">P(LPO) Confidence</div>
+          <div class="hg-head" style="text-align:right">Score</div>
+          <div class="hg-head" style="text-align:center">Severity</div>
+          ${horizonData.map(h => {
+              const k = hzSevKey(h.v);
+              return `
+                <div class="hg-t">${h.h}</div>
+                <div class="hg-track">
+                  <div class="hg-fill ${k}" style="width:${(h.v*100).toFixed(0)}%"></div>
+                  <div class="hg-tw"></div><div class="hg-tc"></div>
+                </div>
+                <div class="hg-val ${k}">${h.v.toFixed(3)}</div>
+                <div class="hg-sev ${k}">${hzSevLabel(h.v)}</div>
+              `;
+          }).join('')}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;flex-shrink:0">
+        <div>
+          <div class="sdiv">Top-3 Contributing Sensors · LSTM Feature Attribution</div>
+          <table class="t">
+            <thead><tr><th>Sensor</th><th>Current</th><th>Unit</th><th>Deviation</th><th>Flag</th></tr></thead>
+            <tbody>
+              ${ticket.topContributors.map(c=>`
+                <tr>
+                  <td><b>${c.name}</b></td>
+                  <td style="font-family:var(--mono);font-weight:700;color:${c.flag==='LOW'?'var(--red)':'var(--amber2)'}">${typeof c.value==='number'?c.value.toLocaleString('en-US'):c.value}</td>
+                  <td>${c.unit}</td>
+                  <td>${fmtDev(c.deviation)}</td>
+                  <td><span class="flag ${c.flag==='LOW'?'lo':'hi'}">${c.flag==='LOW'?'↓ LOW':'↑ HIGH'}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div class="sdiv">Isolation Forest Anomaly Details</div>
+          <div class="if-box">
+            <div class="if-c anomaly"><div class="k">IF Score</div><div class="v">${ticket.ifScore.toFixed(3)}</div></div>
+            <div class="if-c"><div class="k">Contamination</div><div class="v">0.050</div></div>
+            <div class="if-c"><div class="k">Window</div><div class="v">30 min</div></div>
+            <div class="if-c"><div class="k">n-Estimators</div><div class="v">100</div></div>
+          </div>
+          <div style="margin-top:3px;font-size:8px;color:var(--muted);padding:3px 6px;background:${isCrit?'#FFF5F5':'#FFFAF0'};border:1px solid ${isCrit?'#FECACA':'#FED7AA'};border-radius:2px">
+            <b style="color:${isCrit?'var(--red)':'var(--amber2)'}">Anomalous features:</b> ${ticket.topContributors.map(c=>c.name).join(' · ')} — ${ticket.topContributors.length} concurrent deviations detected
+          </div>
+        </div>
+      </div>
+
+      <div class="sdiv">Sensor Snapshot · All 10 Channels · L1 ATEX Telemetry · ${ticket.timestamp}</div>
+      <div class="sensors">${senHtml}</div>
+
+      <div class="sdiv">AI Reasoning · LSTM Engine v1.0 · Attention-Weighted Temporal Analysis</div>
+      <div class="reasoning">${ticket.reasoning}</div>
+
+      <div class="sdiv">Recommended Action · AI-Generated · Requires HITL Approval</div>
+      <div class="recbox ${sevKey==='warning'?'warning':''}">
+        <div>
+          <div class="rlbl">AI Decision</div>
+          <div class="recpill ${ticket.recommendation.toLowerCase()}">${ticket.recommendation.toUpperCase()}</div>
+        </div>
+        <div class="rdet">
+          <b>Immediate:</b> ${ticket.immediateAction}
+          <br><b>Follow-up:</b> ${ticket.followUp}
+        </div>
+      </div>
+
+      <div class="sdiv">Approval Chain · 3-Tier RBAC · Human-in-the-Loop (HITL) Framework</div>
+      <table class="rbac">
+        <thead><tr>
+          <th style="width:18%">Role · Tier</th>
+          <th style="width:22%">Name / NIK</th>
+          <th style="width:28%">Signature</th>
+          <th style="width:14%">Timestamp</th>
+          <th>Decision</th>
+        </tr></thead>
+        <tbody>${rbacRows}</tbody>
+      </table>
+
+      <div class="audit-footer">
+        <div>
+          Auto-generated · WELLSENSE LSTM Engine v1.0 · FastAPI HITL Pipeline · SQLite Audit Trail<br>
+          Unauthorized modification is prohibited · Classification: CONFIDENTIAL — PHM Internal
+        </div>
+        <div>
+          Printed: ${new Date().toLocaleString('en-GB',{timeZone:'Asia/Jayapura',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})} WIT &nbsp;·&nbsp; Page 1 of 1
+        </div>
+      </div>
+    </div>`;
+
+    /* Auto-trigger print dialog if ?autoprint=1 */
+    if(auto){
+        setTimeout(() => window.print(), 600);
+    }
+})();
+</script>
+</body>
+</html>

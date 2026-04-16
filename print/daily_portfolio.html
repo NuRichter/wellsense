@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>WELLSENSE — Daily Portfolio Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --navy:#0D1B35; --navy2:#1A2E54; --navy3:#243B6A;
+  --orange:#F97316; --orange2:#EA580C;
+  --muted:#6B7A90; --line:#D4D9E2;
+  --red:#B91C1C; --red2:#DC2626;
+  --amber:#C2410C; --amber2:#D97706;
+  --green:#15803D; --green2:#16A34A;
+  --bg:#F0F3F8;
+  --mono:'IBM Plex Mono','Consolas',monospace;
+  --sans:'IBM Plex Sans','Segoe UI',sans-serif;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg); font-family:var(--sans); color:#1F2937; font-size:10.5px; line-height:1.5; }
+
+/* Screen-only toolbar */
+.toolbar{
+  position:sticky; top:0; z-index:100;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 20px; background:#0D1B35; color:#fff;
+  border-bottom:3px solid var(--orange);
+}
+.toolbar .tb-left{ display:flex; align-items:center; gap:12px; }
+.toolbar .tb-title{ font-weight:700; font-size:13px; letter-spacing:.02em; }
+.toolbar .tb-fn{ font-family:var(--mono); font-size:10.5px; color:#F97316; padding:4px 8px; background:rgba(249,115,22,0.1); border:1px solid rgba(249,115,22,0.3); border-radius:4px; }
+.toolbar button{
+  padding:8px 16px; background:var(--orange); color:#fff; border:none; border-radius:4px;
+  font-weight:700; font-size:11px; cursor:pointer; letter-spacing:.05em;
+}
+.toolbar button.secondary{ background:transparent; border:1px solid #334155; color:#CBD5E1; }
+.toolbar button:hover{ opacity:0.9; }
+
+/* Page */
+.page{
+  width:210mm; min-height:297mm;
+  margin:10mm auto; background:#fff;
+  box-shadow:0 12px 48px rgba(13,27,53,0.15);
+  padding:10mm 12mm;
+  position:relative; overflow:hidden;
+}
+
+/* Header */
+.hdr{
+  display:flex; justify-content:space-between; align-items:flex-start;
+  padding-bottom:8px; border-bottom:2px solid var(--navy);
+}
+.brand{ display:flex; align-items:center; gap:10px; }
+.logo{
+  width:38px; height:38px; border-radius:6px;
+  background:linear-gradient(135deg,var(--orange) 0%, #9A3412 100%);
+  color:#fff; display:grid; place-items:center;
+  font-weight:900; font-size:17px;
+}
+.wordmark{ font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--navy); }
+.wordmark span{ color:var(--orange); }
+.sub{ font-size:8.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+.ioc-area{ text-align:right; }
+.ioc-badge{
+  display:inline-block; padding:3px 8px;
+  background:#F8FAFC; border:1px dashed var(--navy3); border-radius:3px;
+  font-size:8px; color:var(--navy2); letter-spacing:.05em;
+}
+.ioc-meta{ font-size:8.5px; color:var(--muted); margin-top:3px; }
+
+/* Title band */
+.title-band{
+  margin:8px 0 10px 0; padding:8px 12px; border-radius:4px;
+  background:linear-gradient(90deg,var(--navy) 0%, var(--navy2) 100%);
+  color:#fff;
+}
+.title-band h1{ margin:0; font-size:16px; font-weight:800; letter-spacing:-.01em; }
+.title-band .meta{ font-size:9.5px; color:#CBD5E1; margin-top:2px; letter-spacing:.02em; }
+
+/* Status ribbon — main visual differentiator per case */
+.status-ribbon{
+  display:flex; align-items:center; gap:12px;
+  padding:10px 14px; border-radius:4px; margin-bottom:10px;
+  border:1.5px solid;
+}
+.status-ribbon.green{ background:linear-gradient(90deg,rgba(22,163,74,0.12),rgba(22,163,74,0.02)); border-color:var(--green); }
+.status-ribbon.amber{ background:linear-gradient(90deg,rgba(217,119,6,0.12),rgba(217,119,6,0.02)); border-color:var(--amber2); }
+.status-ribbon.red{ background:linear-gradient(90deg,rgba(220,38,38,0.12),rgba(220,38,38,0.02)); border-color:var(--red2); }
+.sr-icon{
+  width:40px; height:40px; border-radius:50%;
+  display:grid; place-items:center; color:#fff; font-size:18px; font-weight:800;
+}
+.status-ribbon.green .sr-icon{ background:var(--green); }
+.status-ribbon.amber .sr-icon{ background:var(--amber2); }
+.status-ribbon.red   .sr-icon{ background:var(--red);   }
+.sr-content{ flex:1; }
+.sr-label{ font-size:8.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.status-ribbon.green .sr-label{ color:var(--green); }
+.status-ribbon.amber .sr-label{ color:var(--amber2); }
+.status-ribbon.red   .sr-label{ color:var(--red);   }
+.sr-title{ font-size:14px; font-weight:800; color:var(--navy); margin-top:2px; letter-spacing:-.01em; }
+.sr-transition{
+  font-family:var(--mono); font-size:10px; padding:4px 10px; border-radius:3px;
+  background:#F8FAFC; border:1px solid var(--line); color:var(--navy);
+  font-weight:600;
+}
+
+/* Section header */
+h2{
+  margin:12px 0 6px 0; padding:5px 10px;
+  font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--navy);
+  background:linear-gradient(90deg,rgba(249,115,22,0.12) 0%,rgba(249,115,22,0) 100%);
+  border-left:3px solid var(--orange);
+}
+h2 .h2sub{ font-weight:500; font-size:9px; color:var(--muted); letter-spacing:.02em; text-transform:none; margin-left:6px; }
+
+/* KPI grid */
+.kpi-grid{
+  display:grid; grid-template-columns:repeat(5,1fr); gap:5px;
+}
+.kpi-grid.row2{ grid-template-columns:repeat(4,1fr); margin-top:5px; }
+.kpi{
+  padding:6px 8px; border:1px solid var(--line); border-radius:3px; background:#F8FAFC;
+}
+.kpi.green{ background:#F0FDF4; border-color:#BBF7D0; }
+.kpi.amber{ background:#FFFBEB; border-color:#FED7AA; }
+.kpi.red{ background:#FEF2F2; border-color:#FECACA; }
+.kpi .k{ font-size:7.5px; font-weight:700; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+.kpi .v{ font-size:18px; font-weight:800; color:var(--navy); font-family:var(--mono); line-height:1; margin-top:3px; }
+.kpi .u{ font-size:10px; font-weight:600; color:var(--muted); margin-left:2px; }
+.kpi.green .v{ color:var(--green); }
+.kpi.amber .v{ color:var(--amber2); }
+.kpi.red   .v{ color:var(--red);   }
+.kpi .delta{ font-size:8px; margin-top:3px; letter-spacing:.02em; }
+
+/* Executive narrative box */
+.exec-narrative{
+  padding:8px 12px; border-radius:4px; margin-top:8px;
+  border-left:4px solid; font-size:10.5px; line-height:1.6; color:var(--navy2);
+  background:#F8FAFC;
+}
+.exec-narrative.green{ border-left-color:var(--green); }
+.exec-narrative.amber{ border-left-color:var(--amber2); }
+.exec-narrative.red  { border-left-color:var(--red);    }
+.exec-narrative b{ color:var(--navy); }
+
+/* Wide table */
+.wt{ width:100%; border-collapse:collapse; font-size:9.5px; margin-top:4px; }
+.wt th{
+  background:var(--navy); color:#fff; padding:6px 8px; text-align:left;
+  font-weight:700; font-size:8.5px; letter-spacing:.05em; text-transform:uppercase;
+}
+.wt td{ padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.wt tr:nth-child(even) td{ background:#F8FAFC; }
+.mono{ font-family:var(--mono); font-weight:600; }
+
+/* Cluster pill */
+.pill{ display:inline-block; padding:3px 8px; border-radius:3px; font-size:8.5px; font-weight:700; letter-spacing:.04em; }
+.pill.red{ background:var(--red); color:#fff; }
+.pill.amber{ background:var(--amber2); color:#fff; }
+.pill.green{ background:var(--green); color:#fff; }
+.pill.gray{ background:#E2E8F0; color:var(--navy); }
+
+/* Arrow */
+.arrow{ display:inline-block; font-size:11px; font-weight:700; font-family:var(--mono); }
+.arrow.up{ color:var(--red); }
+.arrow.down{ color:var(--green); }
+.arrow.neutral{ color:var(--muted); }
+
+/* Migration cards */
+.mig-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:4px; }
+.mig-card{
+  padding:7px 10px; border:1.5px solid; border-radius:4px;
+  display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center;
+}
+.mig-card.red{ border-color:var(--red2); background:#FEF2F2; }
+.mig-card.amber{ border-color:var(--amber2); background:#FFFBEB; }
+.mig-well{ font-size:14px; font-weight:800; color:var(--navy); font-family:var(--mono); letter-spacing:.03em; }
+.mig-transition{ font-size:9.5px; color:var(--navy2); display:flex; align-items:center; gap:4px; }
+.mig-feature{ font-size:8.5px; color:var(--muted); margin-top:2px; font-family:var(--mono); }
+.mig-plpo{ font-size:18px; font-weight:800; font-family:var(--mono); }
+.mig-card.red .mig-plpo{ color:var(--red); }
+.mig-card.amber .mig-plpo{ color:var(--amber2); }
+
+/* Chart-like bars for cluster distribution */
+.cluster-chart{ display:grid; grid-template-columns:120px 1fr 50px; gap:6px; align-items:center; margin:3px 0; font-size:9.5px; }
+.cc-label{ font-weight:700; color:var(--navy); }
+.cc-track{ height:10px; background:#F1F5F9; border-radius:5px; overflow:hidden; border:1px solid var(--line); }
+.cc-fill{ height:100%; display:flex; align-items:center; justify-content:flex-end; padding-right:4px; color:#fff; font-size:7.5px; font-weight:700; font-family:var(--mono); }
+.cc-count{ font-family:var(--mono); font-weight:700; color:var(--navy); text-align:right; }
+
+/* Recommendation box */
+.recommendation{
+  margin-top:10px; padding:10px 14px; border-radius:4px;
+  display:flex; align-items:center; gap:14px;
+  border:1.5px solid;
+}
+.recommendation.green{ background:linear-gradient(90deg,#F0FDF4 0%, #fff 100%); border-color:var(--green); }
+.recommendation.amber{ background:linear-gradient(90deg,#FFFBEB 0%, #fff 100%); border-color:var(--amber2); }
+.recommendation.red  { background:linear-gradient(90deg,#FEF2F2 0%, #fff 100%); border-color:var(--red);    }
+.rec-label{ font-size:8px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.rec-action{ font-size:13px; font-weight:800; letter-spacing:.03em; margin-top:2px; }
+.recommendation.green .rec-action{ color:var(--green); }
+.recommendation.amber .rec-action{ color:var(--amber2); }
+.recommendation.red   .rec-action{ color:var(--red);   }
+.rec-desc{ font-size:9.5px; color:var(--navy2); line-height:1.5; }
+
+/* HITL summary */
+.hitl-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:4px; }
+.hitl-card{ padding:6px 10px; border:1px solid var(--line); border-radius:3px; background:#F8FAFC; }
+.hitl-card .k{ font-size:8px; font-weight:700; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+.hitl-card .v{ font-size:14px; font-weight:800; color:var(--navy); margin-top:2px; font-family:var(--mono); }
+
+/* Signoff block */
+.signoff{
+  margin-top:16px; padding:10px 14px;
+  border-top:2px solid var(--navy); display:grid; grid-template-columns:repeat(3,1fr); gap:20px;
+}
+.sig-box{ }
+.sig-label{ font-size:8px; font-weight:700; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+.sig-line-box{ display:block; height:1px; background:var(--navy); width:100%; margin:20px 0 3px 0; }
+.sig-name{ font-size:9.5px; font-weight:700; color:var(--navy); }
+.sig-role{ font-size:8px; color:var(--muted); font-family:var(--mono); }
+
+/* Audit footer */
+.audit-footer{
+  margin-top:14px; padding-top:6px; border-top:1px solid var(--line);
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:7.5px; color:var(--muted); letter-spacing:.05em; text-transform:uppercase;
+  font-family:var(--mono);
+}
+
+/* Print handling */
+@page{ size:A4; margin:0; }
+@media print{
+  .toolbar{ display:none !important; }
+  html,body{ background:#fff; }
+  .page{ margin:0; box-shadow:none; page-break-after:always; }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="tb-left">
+    <div class="tb-title">WELLSENSE · Daily Portfolio Report</div>
+    <div class="tb-fn" id="tbFn">—</div>
+  </div>
+  <div>
+    <button class="secondary" onclick="window.close()">Close</button>
+    <button onclick="window.print()">🖨️ Save as PDF</button>
+  </div>
+</div>
+
+<div id="portfolioCanvas"></div>
+
+<script src="../app.js"></script>
+<script>
+(function(){
+    const params   = new URLSearchParams(window.location.search);
+    const caseNum  = parseInt(params.get('case') || '3', 10);
+    const auto     = params.get('autoprint') === '1';
+    const scenario = DAILY_SCENARIOS['case'+caseNum] || DAILY_SCENARIOS.case3;
+
+    /* Filename */
+    const today    = new Date();
+    const todayYmd = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+    const dateYmd  = '20260416'; // aligned with dummy data timestamp context
+    const fn       = buildPortfolioFilename(scenario.code, KPI.currentCycle, dateYmd);
+    document.getElementById('tbFn').textContent = fn;
+    document.title = fn.replace('.pdf','');
+
+    /* Color mapping for ribbon + narrative + recommendation */
+    const colorClass = scenario.bannerColor; // green | amber | red
+    const ribbonIcon = colorClass === 'green' ? '✓' : colorClass === 'amber' ? '!' : '✕';
+
+    /* Transition display string */
+    const transitionText = scenario.transition === 'NONE' ? '— (no migration)' : scenario.transition;
+
+    /* Cluster distribution — percent widths for visual bars */
+    const cd    = scenario.clusterDist;
+    const total = cd.stable + cd.moderate + cd.highRisk;
+
+    /* Migrations HTML */
+    const migrationsHtml = scenario.migrations.length > 0
+        ? scenario.migrations.map(m => {
+            const toRed = m.to === 'HIGH_RISK';
+            const cls   = toRed ? 'red' : 'amber';
+            return `
+              <div class="mig-card ${cls}">
+                <div class="mig-well">${m.wellId}</div>
+                <div>
+                  <div class="mig-transition">
+                    <span class="pill ${m.from === 'STABLE' ? 'green' : 'amber'}">${m.from}</span>
+                    <span class="arrow ${toRed ? 'up' : 'neutral'}">→</span>
+                    <span class="pill ${m.to === 'HIGH_RISK' ? 'red' : 'amber'}">${m.to}</span>
+                  </div>
+                  <div class="mig-feature">Dominant feature: ${m.dominantFeature}</div>
+                </div>
+                <div class="mig-plpo">${m.pLPO.toFixed(3)}</div>
+              </div>`;
+        }).join('')
+        : `<div style="padding:10px;font-size:10px;color:var(--muted);background:#F8FAFC;border:1px dashed var(--line);border-radius:4px;text-align:center;font-style:italic">
+             Tidak ada migrasi cluster terdeteksi pada K-Means batch-daily run 23:00 WIT. Seluruh 32 sumur mempertahankan posisi cluster mereka dari siklus sebelumnya.
+           </div>`;
+
+    /* Cluster trend indicator */
+    const trendRow = cluster => {
+        const migratedIn = scenario.migrations.filter(m => m.to === cluster).length;
+        const migratedOut = scenario.migrations.filter(m => m.from === cluster).length;
+        const net = migratedIn - migratedOut;
+        if(net > 0)      return `<span class="arrow up">↑ +${net} wells</span>`;
+        if(net < 0)      return `<span class="arrow down">↓ ${net} wells</span>`;
+        return `<span class="arrow neutral">— stable</span>`;
+    };
+
+    /* Assemble the page */
+    document.getElementById('portfolioCanvas').innerHTML = `
+    <div class="page">
+      <div class="hdr">
+        <div class="brand">
+          <div class="logo">W</div>
+          <div>
+            <div class="wordmark">WELL<span>SENSE</span></div>
+            <div class="sub">Intelligent EADP Monitoring · v1.1 · HITL-Enabled</div>
+          </div>
+        </div>
+        <div class="ioc-area">
+          <div class="ioc-badge">SKK Migas IOC · Integrated Operation Center</div>
+          <div class="ioc-meta">PT Pertamina Hulu Mahakam · Bekapai Field</div>
+          <div class="ioc-meta">Digital Hackathon AI/ML Hulu Migas 2026</div>
+        </div>
+      </div>
+
+      <div class="title-band">
+        <h1>Daily Portfolio Report — Cycle ${KPI.currentCycle} of ${KPI.totalCycles}</h1>
+        <div class="meta">
+          Date: 16 April 2026 &nbsp;·&nbsp; Bekapai Field &nbsp;·&nbsp; Mahakam Block, East Kalimantan &nbsp;·&nbsp; Operator: PT Pertamina Hulu Mahakam (PHM) &nbsp;·&nbsp; Batch Run: 23:00 WIT
+        </div>
+      </div>
+
+      <!-- Status Ribbon — the visual differentiator across cases -->
+      <div class="status-ribbon ${colorClass}">
+        <div class="sr-icon">${ribbonIcon}</div>
+        <div class="sr-content">
+          <div class="sr-label">${scenario.bannerLabel}</div>
+          <div class="sr-title">${scenario.headline}</div>
+        </div>
+        <div class="sr-transition">${transitionText}</div>
+      </div>
+
+      <!-- Executive narrative -->
+      <h2>Executive Narrative <span class="h2sub">— AI-generated synthesis · Cycle ${KPI.currentCycle} · Shift Afternoon</span></h2>
+      <div class="exec-narrative ${colorClass}">${scenario.narrative}</div>
+
+      <!-- KPI Row 1 -->
+      <h2>Operational KPI Snapshot <span class="h2sub">— 24h window 00:00–23:59 WIT</span></h2>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="k">Wells Monitored</div>
+          <div class="v">32</div>
+          <div class="delta" style="color:var(--muted)">Bekapai · Sisi-Nubi · Peciko</div>
+        </div>
+        <div class="kpi ${scenario.kpi.critTickets > 0 ? 'red' : ''}">
+          <div class="k">Critical Tickets</div>
+          <div class="v">${scenario.kpi.critTickets}</div>
+          <div class="delta" style="color:${scenario.kpi.critTickets > 0 ? 'var(--red)' : 'var(--muted)'}">P(LPO) ≥ 0.85</div>
+        </div>
+        <div class="kpi ${scenario.kpi.warnTickets > 0 ? 'amber' : ''}">
+          <div class="k">Warning Tickets</div>
+          <div class="v">${scenario.kpi.warnTickets}</div>
+          <div class="delta" style="color:var(--muted)">0.65 ≤ P &lt; 0.85</div>
+        </div>
+        <div class="kpi">
+          <div class="k">Prod. Estimate</div>
+          <div class="v">42.8<span class="u">Kbbl</span></div>
+          <div class="delta" style="color:var(--muted)">${scenario.kpi.prodDelta}</div>
+        </div>
+        <div class="kpi ${scenario.kpi.avertedLPO > 0 ? 'green' : ''}">
+          <div class="k">Averted LPO Est.</div>
+          <div class="v">${scenario.kpi.avertedLPO > 0 ? '~'+scenario.kpi.avertedLPO.toLocaleString() : '0'}<span class="u">bbl</span></div>
+          <div class="delta" style="color:${scenario.kpi.avertedLPO > 0 ? 'var(--green)' : 'var(--muted)'}">Loss prevented</div>
+        </div>
+      </div>
+
+      <!-- HITL summary -->
+      <h2>HITL Framework Activity <span class="h2sub">— 3-tier RBAC decision outcomes today</span></h2>
+      <div class="hitl-grid">
+        <div class="hitl-card">
+          <div class="k">Tickets Reviewed</div>
+          <div class="v">${scenario.kpi.critTickets + scenario.kpi.warnTickets}</div>
+        </div>
+        <div class="hitl-card">
+          <div class="k">Tier-3 Escalations</div>
+          <div class="v" style="color:${scenario.kpi.hitlEscalations > 0 ? 'var(--red)' : 'var(--navy)'}">${scenario.kpi.hitlEscalations}</div>
+        </div>
+        <div class="hitl-card">
+          <div class="k">Rubber-Stamp Rate</div>
+          <div class="v" style="color:var(--green)">${(MODEL_METRICS.rubberStamp*100).toFixed(0)}%</div>
+        </div>
+      </div>
+
+      <!-- K-Means Cluster Distribution -->
+      <h2>K-Means Cluster Distribution <span class="h2sub">— Nightly batch run at 23:00 WIT · k=3</span></h2>
+      <table class="wt">
+        <thead>
+          <tr>
+            <th style="width:18%">Cluster</th>
+            <th style="width:11%">Wells</th>
+            <th style="width:13%">Share</th>
+            <th style="width:16%">Trend vs D−1</th>
+            <th style="width:18%">Centroid Action</th>
+            <th>Recommended Response</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill green">STABLE</span></td>
+            <td class="mono" style="font-weight:700;color:var(--green)">${cd.stable}</td>
+            <td class="mono">${((cd.stable/total)*100).toFixed(1)}%</td>
+            <td>${trendRow('STABLE')}</td>
+            <td><span class="pill green">MAINTAIN</span></td>
+            <td>Operasi normal · Passive monitoring · Log-only audit trail</td>
+          </tr>
+          <tr>
+            <td><span class="pill amber">MODERATE</span></td>
+            <td class="mono" style="font-weight:700;color:var(--amber2)">${cd.moderate}</td>
+            <td class="mono">${((cd.moderate/total)*100).toFixed(1)}%</td>
+            <td>${trendRow('MODERATE')}</td>
+            <td><span class="pill amber">INSPECT / ADJUST</span></td>
+            <td>Tiket intervensi WARNING ke Tier 1 · Triage dalam siklus berjalan</td>
+          </tr>
+          <tr>
+            <td><span class="pill red">HIGH RISK</span></td>
+            <td class="mono" style="font-weight:700;color:var(--red)">${cd.highRisk}</td>
+            <td class="mono">${((cd.highRisk/total)*100).toFixed(1)}%</td>
+            <td>${trendRow('HIGH_RISK')}</td>
+            <td><span class="pill red">SHUTDOWN / INSPECT</span></td>
+            <td>Immediate Tier-3 escalation · Intervention ticket CRITICAL auto-generated</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Visual cluster bars -->
+      <div style="margin-top:8px; padding:8px 12px; background:#F8FAFC; border:1px solid var(--line); border-radius:4px;">
+        <div style="font-size:8px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Visual Distribution</div>
+        <div class="cluster-chart">
+          <div class="cc-label">STABLE (Aman)</div>
+          <div class="cc-track"><div class="cc-fill" style="background:var(--green); width:${(cd.stable/total)*100}%">${cd.stable}</div></div>
+          <div class="cc-count">${cd.stable} wells</div>
+        </div>
+        <div class="cluster-chart">
+          <div class="cc-label">MODERATE (Waspada)</div>
+          <div class="cc-track"><div class="cc-fill" style="background:var(--amber2); width:${(cd.moderate/total)*100}%">${cd.moderate}</div></div>
+          <div class="cc-count">${cd.moderate} wells</div>
+        </div>
+        <div class="cluster-chart">
+          <div class="cc-label">HIGH RISK (Kritis)</div>
+          <div class="cc-track"><div class="cc-fill" style="background:var(--red); width:${(cd.highRisk/total)*100}%">${cd.highRisk}</div></div>
+          <div class="cc-count">${cd.highRisk} wells</div>
+        </div>
+      </div>
+
+      <!-- Cluster Migration Panel -->
+      <h2>Cluster Migration Detection <span class="h2sub">— Transitions detected in today's batch run</span></h2>
+      <div class="mig-grid">${migrationsHtml}</div>
+
+      <!-- Model Health -->
+      <h2>AI/ML Model Health <span class="h2sub">— Dual-track performance metrics · Pre-flight for Cycle ${KPI.currentCycle + 1}</span></h2>
+      <table class="wt">
+        <thead>
+          <tr>
+            <th style="width:20%">Metric</th>
+            <th style="width:15%">Value</th>
+            <th style="width:15%">Target</th>
+            <th style="width:15%">Status</th>
+            <th>Commentary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Recall</b> · LSTM</td>
+            <td class="mono" style="color:var(--green); font-weight:700">${MODEL_METRICS.recall.toFixed(3)}</td>
+            <td class="mono">≥ 0.95</td>
+            <td><span class="pill green">PASS</span></td>
+            <td>Bias-to-recall design intact. Tidak ada LPO event terlewat di Cycle ${KPI.currentCycle}.</td>
+          </tr>
+          <tr>
+            <td><b>Precision</b> · LSTM</td>
+            <td class="mono" style="color:var(--green); font-weight:700">${MODEL_METRICS.precision.toFixed(3)}</td>
+            <td class="mono">≥ 0.85</td>
+            <td><span class="pill green">PASS</span></td>
+            <td>False-alarm rate acceptable (cost trade-off consistent with business rationale).</td>
+          </tr>
+          <tr>
+            <td><b>F1-Score</b></td>
+            <td class="mono" style="color:var(--green); font-weight:700">${MODEL_METRICS.f1.toFixed(3)}</td>
+            <td class="mono">≥ 0.90</td>
+            <td><span class="pill green">PASS</span></td>
+            <td>Balanced dual-model performance.</td>
+          </tr>
+          <tr>
+            <td><b>ROC-AUC</b></td>
+            <td class="mono" style="color:var(--green); font-weight:700">${MODEL_METRICS.rocAuc.toFixed(3)}</td>
+            <td class="mono">≥ 0.90</td>
+            <td><span class="pill green">PASS</span></td>
+            <td>Discriminative capacity strong across thresholds.</td>
+          </tr>
+          <tr>
+            <td><b>Feedback Loop</b></td>
+            <td class="mono" style="color:var(--green); font-weight:700">${MODEL_METRICS.feedbackLoop}</td>
+            <td class="mono">ACTIVE</td>
+            <td><span class="pill green">PASS</span></td>
+            <td>HITL outcomes feeding back to retraining queue. Last retrain: ${MODEL_METRICS.lastRetrain}.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Recommendation -->
+      <h2>Centroid-Level Recommendation <span class="h2sub">— Portfolio-wide action guidance</span></h2>
+      <div class="recommendation ${colorClass}">
+        <div>
+          <div class="rec-label">AI Decision · Requires Tier-${colorClass==='green'?'1':colorClass==='amber'?'2':'3'} Sign-off</div>
+          <div class="rec-action">${scenario.recommendation}</div>
+        </div>
+        <div class="rec-desc" style="flex:1">${scenario.statusMessage}</div>
+      </div>
+
+      <!-- Sign-off block -->
+      <div class="signoff">
+        <div class="sig-box">
+          <div class="sig-label">Prepared By · AI/ML Engine</div>
+          <div class="sig-line-box"></div>
+          <div class="sig-name">WELLSENSE Dual-Model v1.1</div>
+          <div class="sig-role">LSTM 2L×128U + K-Means k=3</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-label">Reviewed By · Production Engineer</div>
+          <div class="sig-line-box"></div>
+          <div class="sig-name">Ir. Bambang Setiawan</div>
+          <div class="sig-role">PHM-PE-0058 · Tier 3</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-label">Approved By · Field Operation Manager</div>
+          <div class="sig-line-box"></div>
+          <div class="sig-name">— (pending)</div>
+          <div class="sig-role">PHM-FOM</div>
+        </div>
+      </div>
+
+      <div class="audit-footer">
+        <div>
+          Auto-generated · WELLSENSE Batch-Daily Engine v1.1 · FastAPI HITL Pipeline · SQLite Audit Trail<br>
+          Filename: ${fn} &nbsp;·&nbsp; Classification: CONFIDENTIAL — PHM Internal
+        </div>
+        <div>
+          Printed: ${new Date().toLocaleString('en-GB',{timeZone:'Asia/Jayapura',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})} WIT &nbsp;·&nbsp; Page 1 of 1
+        </div>
+      </div>
+    </div>`;
+
+    /* Auto-trigger print */
+    if(auto){
+        setTimeout(() => window.print(), 600);
+    }
+})();
+</script>
+</body>
+</html>

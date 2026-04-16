@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WELLSENSE · Dashboard</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -52,6 +52,12 @@
                         <div class="chart-wrap" style="height:280px">
                             <canvas id="plpoChart"></canvas>
                         </div>
+                        <!-- Threshold legend: anchor to architecture spec -->
+                        <div class="plpo-thr-legend">
+                            <span class="thr-item"><span class="thr-line crit"></span><b>P ≥ 0.85</b> · CRITICAL · 3-tier RBAC + audio alert</span>
+                            <span class="thr-item"><span class="thr-line warn"></span><b>0.65 ≤ P &lt; 0.85</b> · WARNING · Well Operator triage</span>
+                            <span class="thr-item"><span class="thr-line norm"></span><b>P &lt; 0.65</b> · NORMAL · log only (audit retained)</span>
+                        </div>
                     </div>
                 </div>
 
@@ -73,12 +79,13 @@
                 </div>
             </section>
 
-            <!-- Active tickets -->
+            <!-- Active tickets + inline print buttons -->
             <section class="card delay-3">
                 <div class="card-header">
                     <div>
-                        <div class="card-eyebrow">HITL Framework</div>
+                        <div class="card-eyebrow">HITL Framework · L4 Decision Layer</div>
                         <div class="card-title">Active Intervention Tickets</div>
+                        <div class="card-desc">Dual-source triggered · RT-LSTM + BD-KMeans · Click print icon to generate PDF</div>
                     </div>
                     <div class="flex gap-8" id="ticketBadges"></div>
                 </div>
@@ -87,7 +94,8 @@
                         <thead>
                             <tr>
                                 <th>Ticket ID</th><th>Well</th><th>Severity</th>
-                                <th>P(LPO)</th><th>Recommendation</th><th>RBAC Status</th><th>Timestamp</th>
+                                <th>P(LPO)</th><th>Recommendation</th><th>RBAC Status</th>
+                                <th>Timestamp</th><th style="text-align:center;width:80px">Print</th>
                             </tr>
                         </thead>
                         <tbody id="ticketBody"></tbody>
@@ -95,20 +103,168 @@
                 </div>
             </section>
 
+            <!-- ═══ PRINT CENTER · L5 Output Bridge ═══ -->
+            <section class="card delay-4" id="printCenter">
+                <div class="card-header">
+                    <div>
+                        <div class="card-eyebrow">L5 · Output Bridge · Auditable PDF Export</div>
+                        <div class="card-title">Print Center — Dual-Track Report Generator</div>
+                        <div class="card-desc">Materialization of AI/ML verdicts into forensic-grade PDF artefacts · SQLite audit-trail compliant</div>
+                    </div>
+                    <div class="pc-autodetect" id="autoDetectCard"></div>
+                </div>
+
+                <div class="card-body">
+
+                    <!-- Track A: Intervention Ticket (RT-LSTM) -->
+                    <div class="pc-track">
+                        <div class="pc-track-header">
+                            <div class="pc-track-label">
+                                <span class="pc-track-icon purple">IT</span>
+                                <div>
+                                    <div class="pc-track-title">Track A · Intervention Ticket</div>
+                                    <div class="pc-track-sub">Real-Time Trigger · per-well event · ISO 27001-ready format</div>
+                                </div>
+                            </div>
+                            <div class="pc-track-tag">RT-LSTM · Per-Hour</div>
+                        </div>
+                        <div class="pc-case-grid">
+                            <!-- Case 1: WARNING -->
+                            <div class="pc-case warn" data-case="1">
+                                <div class="pc-case-head">
+                                    <span class="pc-case-num">Case 1</span>
+                                    <span class="pc-case-sev warn">WARNING</span>
+                                </div>
+                                <div class="pc-case-title">LPO · Threshold Warning</div>
+                                <div class="pc-case-rule"><b>0.65 ≤ P(LPO) &lt; 0.85</b></div>
+                                <div class="pc-case-desc">Ticket routed to Well Operator (Tier 1) untuk triase awal. Status belum memerlukan shutdown.</div>
+                                <div class="pc-case-filename" id="fn-c1">WS-INT_20260416-1202WIT_BKP-B07_WARN_C4.pdf</div>
+                                <button class="pc-btn warn" data-action="print-c1">
+                                    <span class="pc-btn-icon" id="ic-print-c1"></span> Generate PDF
+                                </button>
+                            </div>
+
+                            <!-- Case 2: CRITICAL -->
+                            <div class="pc-case crit" data-case="2">
+                                <div class="pc-case-head">
+                                    <span class="pc-case-num">Case 2</span>
+                                    <span class="pc-case-sev crit">CRITICAL</span>
+                                </div>
+                                <div class="pc-case-title">LPO · Threshold Critical</div>
+                                <div class="pc-case-rule"><b>P(LPO) ≥ 0.85</b></div>
+                                <div class="pc-case-desc">Direct escalation to 3-tier RBAC + audio alert. SHUTDOWN/INSPECT recommendation.</div>
+                                <div class="pc-case-filename" id="fn-c2">WS-INT_20260416-1423WIT_BKP-A03_CRIT_C4.pdf</div>
+                                <button class="pc-btn crit" data-action="print-c2">
+                                    <span class="pc-btn-icon" id="ic-print-c2"></span> Generate PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Track B: Daily Portfolio (BD-KMeans) -->
+                    <div class="pc-track">
+                        <div class="pc-track-header">
+                            <div class="pc-track-label">
+                                <span class="pc-track-icon orange">DP</span>
+                                <div>
+                                    <div class="pc-track-title">Track B · Daily Portfolio Report</div>
+                                    <div class="pc-track-sub">Batch Daily (23:00 WIT) · cluster migration semantics · executive summary</div>
+                                </div>
+                            </div>
+                            <div class="pc-track-tag">BD-KMeans · Per-Cycle</div>
+                        </div>
+
+                        <div class="pc-case-grid pc-case-grid-4">
+                            <!-- Case 3: SAFE STABLE -->
+                            <div class="pc-case safe" data-case="3">
+                                <div class="pc-case-head">
+                                    <span class="pc-case-num">Case 3</span>
+                                    <span class="pc-case-sev safe">SAFE</span>
+                                </div>
+                                <div class="pc-case-title">Recap Daily Aman</div>
+                                <div class="pc-case-rule">No cluster migration</div>
+                                <div class="pc-case-desc">Seluruh sumur retain STABLE. Nihil tiket intervensi. Operasi berjalan normal.</div>
+                                <div class="pc-case-filename" id="fn-c3">WS-DPR_20260416_C4_SAFE-STABLE.pdf</div>
+                                <button class="pc-btn safe" data-action="print-c3">
+                                    <span class="pc-btn-icon" id="ic-print-c3"></span> Generate PDF
+                                </button>
+                            </div>
+
+                            <!-- Case 4: SAFE -> WARNING -->
+                            <div class="pc-case warn" data-case="4">
+                                <div class="pc-case-head">
+                                    <span class="pc-case-num">Case 4</span>
+                                    <span class="pc-case-sev warn">SAFE→WARN</span>
+                                </div>
+                                <div class="pc-case-title">Shift Safe → Warning</div>
+                                <div class="pc-case-rule">STABLE → MODERATE migration</div>
+                                <div class="pc-case-desc">Degradasi bertahap terdeteksi. Tier 1 triage dijadwalkan siklus berikutnya.</div>
+                                <div class="pc-case-filename" id="fn-c4">WS-DPR_20260416_C4_SAFE-TO-WARN.pdf</div>
+                                <button class="pc-btn warn" data-action="print-c4">
+                                    <span class="pc-btn-icon" id="ic-print-c4"></span> Generate PDF
+                                </button>
+                            </div>
+
+                            <!-- Case 5: SAFE -> CRITICAL -->
+                            <div class="pc-case crit" data-case="5">
+                                <div class="pc-case-head">
+                                    <span class="pc-case-num">Case 5</span>
+                                    <span class="pc-case-sev crit">SAFE→CRIT</span>
+                                </div>
+                                <div class="pc-case-title">Shift Safe → Critical</div>
+                                <div class="pc-case-rule">STABLE → HIGH_RISK double-jump</div>
+                                <div class="pc-case-desc">Lompatan cluster ekstrem. Probabilitas historis &lt;4%. Immediate Tier 3.</div>
+                                <div class="pc-case-filename" id="fn-c5">WS-DPR_20260416_C4_SAFE-TO-CRIT.pdf</div>
+                                <button class="pc-btn crit" data-action="print-c5">
+                                    <span class="pc-btn-icon" id="ic-print-c5"></span> Generate PDF
+                                </button>
+                            </div>
+
+                            <!-- Case 6: CAUTION -> CRITICAL -->
+                            <div class="pc-case crit deep" data-case="6">
+                                <div class="pc-case-head">
+                                    <span class="pc-case-num">Case 6</span>
+                                    <span class="pc-case-sev crit">CAUT→CRIT</span>
+                                </div>
+                                <div class="pc-case-title">Shift Caution → Critical</div>
+                                <div class="pc-case-rule">MODERATE → HIGH_RISK progression</div>
+                                <div class="pc-case-desc">Follow-through escalation. Keputusan sebelumnya perlu di-evaluasi ulang.</div>
+                                <div class="pc-case-filename" id="fn-c6">WS-DPR_20260416_C4_CAUT-TO-CRIT.pdf</div>
+                                <button class="pc-btn crit" data-action="print-c6">
+                                    <span class="pc-btn-icon" id="ic-print-c6"></span> Generate PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filename convention note -->
+                    <div class="pc-convention">
+                        <div class="pc-convention-label">Filename Convention · Audit-Archival Standard</div>
+                        <div class="pc-convention-body">
+                            <div><code>WS-INT_&lt;YYYYMMDD&gt;-&lt;HHMM&gt;WIT_&lt;WELLID&gt;_&lt;SEV&gt;_C&lt;CYCLE&gt;.pdf</code> — Intervention Ticket</div>
+                            <div><code>WS-DPR_&lt;YYYYMMDD&gt;_C&lt;CYCLE&gt;_&lt;STATUSCODE&gt;.pdf</code> — Daily Portfolio Report</div>
+                            <div class="pc-convention-foot">Sortable chronological prefix memungkinkan <i>grep-based retrieval</i> pada SQLite audit store tanpa membuka dokumen individual.</div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
         </div>
     </main>
 </div>
-<script src="js/app.js"></script>
+
+<script src="app.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar('index.html');
     initClock('clock');
     wsChartDefaults();
 
-    // Cycle chip
+    /* ── Cycle chip ── */
     document.getElementById('cycleChip').textContent = `CYCLE ${KPI.currentCycle} / ${KPI.totalCycles}`;
 
-    // KPI cards
+    /* ── KPI cards ── */
     const kpis = [
         { icon:'droplets',  label:'Active Wells',    value:KPI.activeWells, trend:'+2 since cycle 1', trendUp:true,  accent:'#7B72E8' },
         { icon:'alerttri',  label:'CRITICAL Alerts', value:KPI.criticalAlerts, trend:'+1 vs yesterday', trendUp:true, accent:'#DC2626', pulse:true },
@@ -129,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     `).join('');
 
-    // PLPO chart
+    /* ── PLPO chart ── */
     const plpoCtx = document.getElementById('plpoChart').getContext('2d');
     new Chart(plpoCtx, {
         type:'line',
@@ -146,10 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
             plugins:{
                 legend:{display:false},
                 tooltip:{...CHART_TOOLTIP},
-                annotation:{annotations:{
-                    cr:{type:'line',yMin:.85,yMax:.85,borderColor:'#DC262660',borderWidth:1,borderDash:[4,4]},
-                    wr:{type:'line',yMin:.65,yMax:.65,borderColor:'#F9731660',borderWidth:1,borderDash:[4,4]},
-                }}
             },
             scales:{
                 x:{grid:CHART_GRID, ticks:{color:'#64748B',font:{size:10}}},
@@ -158,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Cluster donut
+    /* ── Cluster donut ── */
     const clCtx = document.getElementById('clusterChart').getContext('2d');
     new Chart(clCtx,{
         type:'doughnut',
@@ -173,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Cluster list
     document.getElementById('clusterList').innerHTML = CLUSTER_DIST.map(c=>`
         <div class="cluster-row">
             <div class="cluster-row-left">
@@ -187,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     `).join('');
 
-    // Ticket badges
+    /* ── Ticket badges ── */
     const crit = TICKETS.filter(t=>t.severity==='CRITICAL').length;
     const warn = TICKETS.filter(t=>t.severity==='WARNING').length;
     document.getElementById('ticketBadges').innerHTML=`
@@ -195,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="badge badge-warning">${warn} WARNING</span>
     `;
 
-    // Ticket table
+    /* ── Ticket table with inline Print column ── */
     document.getElementById('ticketBody').innerHTML = TICKETS.slice(0,5).map(t=>`
         <tr>
             <td class="td-mono">${t.ticketId.slice(0,8)}…</td>
@@ -205,8 +356,58 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${recPill(t.recommendation)}</td>
             <td>${statusBadge(t.status)}</td>
             <td class="td-mono">${t.timestamp}</td>
+            <td style="text-align:center">
+                <button class="row-print-btn ${t.severity==='CRITICAL'?'crit':'warn'}"
+                        onclick="openInterventionPrint('${t.ticketId}')"
+                        title="Generate PDF: ${buildInterventionFilename(t)}">
+                    ${ICONS.printer}
+                </button>
+            </td>
         </tr>
     `).join('');
+
+    /* ── Print Center icons ── */
+    ['c1','c2','c3','c4','c5','c6'].forEach(id=>{
+        const el = document.getElementById('ic-print-'+id);
+        if(el) el.innerHTML = ICONS.printer;
+    });
+
+    /* ── Case 1 (WARNING) demo filename — pick the first WARNING ticket ── */
+    const warnTicket = TICKETS.find(t=>t.severity==='WARNING');
+    const critTicket = TICKETS.find(t=>t.severity==='CRITICAL');
+    if(warnTicket) document.getElementById('fn-c1').textContent = buildInterventionFilename(warnTicket);
+    if(critTicket) document.getElementById('fn-c2').textContent = buildInterventionFilename(critTicket);
+
+    /* ── Print Center event wiring ── */
+    document.querySelectorAll('[data-action]').forEach(btn=>{
+        btn.addEventListener('click', e=>{
+            const act = btn.dataset.action;
+            if(act==='print-c1' && warnTicket) openInterventionPrint(warnTicket.ticketId);
+            else if(act==='print-c2' && critTicket) openInterventionPrint(critTicket.ticketId);
+            else if(act.startsWith('print-c')){
+                const caseNum = parseInt(act.split('print-c')[1],10);
+                openPortfolioPrint(caseNum);
+            }
+        });
+    });
+
+    /* ── Auto-Detect badge ── */
+    const autoCase = inferDailyCase();
+    const scenario = DAILY_SCENARIOS['case'+autoCase];
+    const badgeColor = scenario.bannerColor==='green'?'#1D9E75':scenario.bannerColor==='amber'?'#F97316':'#DC2626';
+    document.getElementById('autoDetectCard').innerHTML = `
+        <div class="auto-detect-badge" style="border-color:${badgeColor}44;background:${badgeColor}10">
+            <div class="ad-top">
+                <span class="ad-pulse" style="background:${badgeColor}"></span>
+                <span class="ad-label">Current Daily Status</span>
+            </div>
+            <div class="ad-value" style="color:${badgeColor}">CASE ${autoCase}</div>
+            <div class="ad-sub">${scenario.code}</div>
+            <button class="ad-btn" onclick="openPortfolioPrint(${autoCase})">
+                ${ICONS.download} Auto-Generate
+            </button>
+        </div>
+    `;
 });
 </script>
 </body>
