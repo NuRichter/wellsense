@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WELLSENSE · Tickets</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+        <div class="page space-y">
+
+            <!-- Header -->
+            <header class="page-header fade-up">
+                <h1>Intervention Tickets</h1>
+                <p>Human-in-the-Loop review queue · RBAC 3-stage approval</p>
+            </header>
+
+            <!-- Summary strip -->
+            <div class="summary-strip delay-1" id="summaryStrip"></div>
+
+            <!-- Filter tabs -->
+            <div class="filter-bar delay-2" id="filterBar"></div>
+
+            <!-- Ticket list -->
+            <div id="ticketList" class="delay-3"></div>
+
+        </div>
+    </main>
+</div>
+<script src="js/app.js"></script>
+<script>
+let activeFilter = 'ALL';
+
+function decisionStyle(d){
+    const map={
+        APPROVE:  {cls:'text-green bg-green/10 border-wsgreen/30', icon:ICONS.check,       color:'text-wsgreen bg-wsgreen/10 border-wsgreen/30'},
+        REJECT:   {cls:'text-red',   icon:ICONS.xcircle,     color:'status-rejected'},
+        ESCALATE: {cls:'text-purple',icon:ICONS.arrowupcircle,color:'status-escalated'},
+        PENDING:  {cls:'text-yellow',icon:ICONS.clock,        color:'status-pending'},
+    };
+    return map[d]||map.PENDING;
+}
+
+function decisionBadgeStyle(d){
+    if(d==='APPROVE')  return 'text-green;background:rgba(29,158,117,.1);border-color:rgba(29,158,117,.3)';
+    if(d==='REJECT')   return 'color:#DC2626;background:rgba(220,38,38,.1);border-color:rgba(220,38,38,.3)';
+    if(d==='ESCALATE') return 'color:#7B72E8;background:rgba(123,114,232,.1);border-color:rgba(123,114,232,.3)';
+    return 'color:#FBBF24;background:rgba(234,179,8,.1);border-color:rgba(234,179,8,.3)';
+}
+function decisionNumStyle(d){
+    if(d==='APPROVE')  return 'color:#1D9E75;background:rgba(29,158,117,.1);border-color:rgba(29,158,117,.3)';
+    if(d==='REJECT')   return 'color:#DC2626;background:rgba(220,38,38,.1);border-color:rgba(220,38,38,.3)';
+    if(d==='ESCALATE') return 'color:#7B72E8;background:rgba(123,114,232,.1);border-color:rgba(123,114,232,.3)';
+    return 'color:#FBBF24;background:rgba(234,179,8,.1);border-color:rgba(234,179,8,.3)';
+}
+function decisionIcon(d){
+    if(d==='APPROVE')  return ICONS.check;
+    if(d==='REJECT')   return ICONS.xcircle;
+    if(d==='ESCALATE') return ICONS.arrowupcircle;
+    return ICONS.clock;
+}
+
+function buildTicketCard(t, idx){
+    const sevCls = t.severity==='CRITICAL'?'t-critical':t.severity==='WARNING'?'t-warning':'';
+    const plpoColor = severityColor(t.severity);
+    const isOpen = t.severity==='CRITICAL';
+    const srcCls = t.source==='RT_LSTM'?'source-lstm':'source-kmeans';
+    const srcIcon = t.source==='RT_LSTM'?ICONS.cpu:ICONS.database;
+    const srcLabel = t.source==='RT_LSTM'?'RT-LSTM':'BD K-Means';
+
+    const contributors = t.topContributors.map(c=>{
+        const flagColor = c.flag==='HIGH'?'#DC2626':c.flag==='LOW'?'#F97316':'#7B72E8';
+        const barPct = Math.min(100, Math.abs(c.deviation)*1.5);
+        const devCls = c.deviation>0?'dev-pos':'dev-neg';
+        return `
+        <div class="contrib-item">
+            <div class="contrib-header">
+                <div class="contrib-name-row">
+                    <span style="font-weight:500;color:#CBD5E1">${c.name}</span>
+                    <span class="flag-badge" style="color:${flagColor};background:${flagColor}20;border-color:${flagColor}40">${c.flag}</span>
+                </div>
+                <span class="contrib-val">${c.value} <span style="color:#64748B">${c.unit}</span><span class="${devCls}">${c.deviation>0?'+':''}${c.deviation.toFixed(1)}%</span></span>
+            </div>
+            <div class="bar-track"><div class="bar-fill" style="width:${barPct}%;background:${flagColor}"></div></div>
+        </div>`;
+    }).join('');
+
+    const approvalChain = t.approvalChain.map((s,i)=>`
+        <div class="approval-step">
+            <div class="step-left">
+                <div class="step-num" style="${decisionNumStyle(s.decision)}">${i+1}</div>
+                ${i<2?'<div class="step-line"></div>':''}
+            </div>
+            <div class="step-right">
+                <div class="step-role">${s.role}</div>
+                <div class="step-name">${ICONS.user} ${s.name}</div>
+                <div>
+                    <span class="step-decision" style="${decisionBadgeStyle(s.decision)}">${decisionIcon(s.decision)}${s.decision}</span>
+                    ${s.at?`<span class="step-at">${s.at}</span>`:''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+    <div class="card ticket-card ${sevCls}" id="tc-${idx}">
+        <div class="ticket-header" onclick="toggleTicket(${idx})">
+            <div class="ticket-left">
+                <div class="mt-4">${severityBadge(t.severity)}</div>
+                <div class="ticket-meta">
+                    <div class="ticket-well-row">
+                        <span class="ticket-well">${t.wellId}</span>
+                        <span class="ticket-zone">Zone ${t.zone}</span>
+                        <span class="source-badge ${srcCls}">${srcIcon}${srcLabel}</span>
+                    </div>
+                    <div class="ticket-id-str">#${t.ticketId.slice(0,16)}…</div>
+                </div>
+            </div>
+            <div class="ticket-right">
+                <div class="plpo-block">
+                    <div class="plpo-label">P(LPO)</div>
+                    <div class="plpo-value" style="color:${plpoColor}">${t.pLPO.toFixed(3)}</div>
+                </div>
+                <div class="ticket-right-badges">
+                    ${recPill(t.recommendation)}
+                    ${statusBadge(t.status)}
+                </div>
+                <button class="chevron-btn" id="chev-${idx}">${isOpen?ICONS.chevup:ICONS.chevdown}</button>
+            </div>
+        </div>
+        <div class="ticket-body${isOpen?' open':''}" id="tb-${idx}">
+            <div class="ticket-body-grid">
+                <div>
+                    <div class="section-label">Top Signal Contributors</div>
+                    ${contributors}
+                </div>
+                <div>
+                    <div class="section-label">RBAC Approval Chain</div>
+                    ${approvalChain}
+                </div>
+            </div>
+            <div class="reasoning-box">
+                <div class="r-label">LSTM · AI Reasoning</div>
+                <p>${t.reasoning}</p>
+            </div>
+            <div class="ticket-footer">
+                <div>Cycle: <span>${t.cycleNumber}</span> &nbsp; Cluster: <span>${t.clusterLabel}</span></div>
+                <span>${t.timestamp}</span>
+            </div>
+        </div>
+    </div>`;
+}
+
+function toggleTicket(idx){
+    const body = document.getElementById(`tb-${idx}`);
+    const chev = document.getElementById(`chev-${idx}`);
+    const open = body.classList.toggle('open');
+    chev.innerHTML = open ? ICONS.chevup : ICONS.chevdown;
+}
+
+function getFilteredTickets(){
+    if(activeFilter==='ALL') return TICKETS;
+    if(['CRITICAL','WARNING','NORMAL'].includes(activeFilter)) return TICKETS.filter(t=>t.severity===activeFilter);
+    return TICKETS.filter(t=>t.status===activeFilter);
+}
+
+function countFilter(val){
+    if(val==='ALL') return TICKETS.length;
+    if(['CRITICAL','WARNING','NORMAL'].includes(val)) return TICKETS.filter(t=>t.severity===val).length;
+    return TICKETS.filter(t=>t.status===val).length;
+}
+
+function renderFilterBar(){
+    const tabs=[
+        {val:'ALL',label:'All Tickets'},
+        {val:'CRITICAL',label:'Critical'},
+        {val:'WARNING',label:'Warning'},
+        {val:'PENDING',label:'Pending'},
+        {val:'APPROVED',label:'Approved'},
+        {val:'REJECTED',label:'Rejected'},
+    ];
+    document.getElementById('filterBar').innerHTML = tabs.map(t=>`
+        <button class="filter-btn${activeFilter===t.val?' active':''}" onclick="setActiveFilter('${t.val}')">
+            ${t.label}${t.val!=='ALL'?` <span style="opacity:.6">(${countFilter(t.val)})</span>`:''}
+        </button>
+    `).join('');
+}
+
+function setActiveFilter(val){
+    activeFilter=val;
+    renderFilterBar();
+    renderTicketList();
+}
+
+function renderTicketList(){
+    const list = getFilteredTickets();
+    const container = document.getElementById('ticketList');
+    if(list.length===0){
+        container.innerHTML=`<div class="dashed-empty">No tickets match the selected filter.</div>`;
+        return;
+    }
+    container.innerHTML = list.map((t,i)=>buildTicketCard(t,i)).join('');
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    initSidebar('tickets.html');
+
+    // Header eyebrow
+    const hdr = document.querySelector('.page-header');
+    const h1 = hdr.querySelector('h1');
+    const eyebrow = document.createElement('div');
+    eyebrow.className='eyebrow';
+    eyebrow.innerHTML=`${ICONS.ticket} HITL Framework · Cycle 4`;
+    hdr.insertBefore(eyebrow, h1);
+
+    // Summary strip
+    const crit = TICKETS.filter(t=>t.severity==='CRITICAL').length;
+    const pend = TICKETS.filter(t=>t.status==='PENDING').length;
+    const appr = TICKETS.filter(t=>t.status==='APPROVED').length;
+    document.getElementById('summaryStrip').innerHTML=[
+        {label:'Total',   value:TICKETS.length, color:'text-white'},
+        {label:'Critical',value:crit,            color:'text-red'},
+        {label:'Pending', value:pend,            color:'text-yellow'},
+        {label:'Approved',value:appr,            color:'text-green'},
+    ].map(s=>`
+        <div class="summary-card card">
+            <div class="s-label">${s.label}</div>
+            <div class="s-value ${s.color}">${s.value}</div>
+        </div>
+    `).join('');
+
+    renderFilterBar();
+    renderTicketList();
+});
+</script>
+</body>
+</html>

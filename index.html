@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WELLSENSE · Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+        <div class="page space-y">
+
+            <!-- Header -->
+            <header class="page-header flex justify-between items-start fade-up" style="flex-wrap:wrap;gap:16px">
+                <div>
+                    <div class="eyebrow">
+                        <span style="width:6px;height:6px;background:#1D9E75;border-radius:50%;display:inline-block" class="pulse-dot"></span>
+                        Command Center · Live
+                    </div>
+                    <h1>WELLSENSE Dashboard</h1>
+                    <p>Mahakam Block · Bekapai Field · Operated by PHM (Pertamina Hulu Mahakam)</p>
+                </div>
+                <div class="header-actions">
+                    <div class="clock-chip" id="clock">—</div>
+                    <div class="cycle-chip" id="cycleChip"></div>
+                </div>
+            </header>
+
+            <!-- KPI Strip -->
+            <section class="kpi-grid delay-1" id="kpiGrid"></section>
+
+            <!-- Main grid -->
+            <section class="main-grid delay-2">
+                <!-- P(LPO) Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-eyebrow">LSTM · Real-Time</div>
+                            <div class="card-title">P(LPO) — 24-Hour Window</div>
+                            <div class="card-desc">Loss of Production Opportunity probability · 3 monitored wells</div>
+                        </div>
+                        <div class="chart-legend">
+                            <span class="legend-dot"><span style="background:#DC2626"></span>BKP-A03</span>
+                            <span class="legend-dot"><span style="background:#F97316"></span>BKP-B07</span>
+                            <span class="legend-dot"><span style="background:#1D9E75"></span>BKP-C11</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-wrap" style="height:280px">
+                            <canvas id="plpoChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cluster donut -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-eyebrow">K-Means · Nightly</div>
+                            <div class="card-title">Cluster Distribution</div>
+                            <div class="card-desc">32 wells · last run 23:00 WIT</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-wrap" style="height:180px">
+                            <canvas id="clusterChart"></canvas>
+                        </div>
+                        <div class="cluster-list" id="clusterList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Active tickets -->
+            <section class="card delay-3">
+                <div class="card-header">
+                    <div>
+                        <div class="card-eyebrow">HITL Framework</div>
+                        <div class="card-title">Active Intervention Tickets</div>
+                    </div>
+                    <div class="flex gap-8" id="ticketBadges"></div>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="data-table" id="ticketTable">
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th><th>Well</th><th>Severity</th>
+                                <th>P(LPO)</th><th>Recommendation</th><th>RBAC Status</th><th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+    </main>
+</div>
+<script src="js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    initSidebar('index.html');
+    initClock('clock');
+    wsChartDefaults();
+
+    // Cycle chip
+    document.getElementById('cycleChip').textContent = `CYCLE ${KPI.currentCycle} / ${KPI.totalCycles}`;
+
+    // KPI cards
+    const kpis = [
+        { icon:'droplets',  label:'Active Wells',    value:KPI.activeWells, trend:'+2 since cycle 1', trendUp:true,  accent:'#7B72E8' },
+        { icon:'alerttri',  label:'CRITICAL Alerts', value:KPI.criticalAlerts, trend:'+1 vs yesterday', trendUp:true, accent:'#DC2626', pulse:true },
+        { icon:'clock',     label:'Current Cycle',   value:`${KPI.currentCycle} / ${KPI.totalCycles}`, trend:'Day 4 of 5', accent:'#F97316' },
+        { icon:'flame',     label:'Daily Production',value:`${(KPI.dailyProduction/1000).toFixed(1)}K`, sub:'bbl/day', trend:'−1.2% vs target', trendDown:true, accent:'#1D9E75' },
+    ];
+    document.getElementById('kpiGrid').innerHTML = kpis.map(k=>`
+        <div class="kpi-card card card-hover fade-up">
+            <div class="accent-bar" style="background:${k.accent}"></div>
+            <div class="kpi-label" style="color:${k.accent}">${ICONS[k.icon]} <span style="color:#94A3B8">${k.label}</span></div>
+            <div class="kpi-value">${k.value}${k.sub?` <span class="kpi-sub">${k.sub}</span>`:''}</div>
+            <div class="kpi-trend">
+                ${k.trendUp?`<span style="color:#1D9E75">${ICONS.arrowup}</span>`:''}
+                ${k.trendDown?`<span style="color:#DC2626">${ICONS.arrowdown}</span>`:''}
+                ${k.trend}
+            </div>
+            ${k.pulse?`<span class="pulse-indicator pulse-dot"></span>`:''}
+        </div>
+    `).join('');
+
+    // PLPO chart
+    const plpoCtx = document.getElementById('plpoChart').getContext('2d');
+    new Chart(plpoCtx, {
+        type:'line',
+        data:{
+            labels: PLPO_24H.filter((_,i)=>i%3===0).map(d=>d.hour),
+            datasets:[
+                {label:'BKP-A03',data:PLPO_24H.filter((_,i)=>i%3===0).map(d=>d.a03),borderColor:'#DC2626',borderWidth:2.2,pointRadius:0,tension:.3},
+                {label:'BKP-B07',data:PLPO_24H.filter((_,i)=>i%3===0).map(d=>d.b07),borderColor:'#F97316',borderWidth:2.2,pointRadius:0,tension:.3},
+                {label:'BKP-C11',data:PLPO_24H.filter((_,i)=>i%3===0).map(d=>d.c11),borderColor:'#1D9E75',borderWidth:2.2,pointRadius:0,tension:.3},
+            ]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{
+                legend:{display:false},
+                tooltip:{...CHART_TOOLTIP},
+                annotation:{annotations:{
+                    cr:{type:'line',yMin:.85,yMax:.85,borderColor:'#DC262660',borderWidth:1,borderDash:[4,4]},
+                    wr:{type:'line',yMin:.65,yMax:.65,borderColor:'#F9731660',borderWidth:1,borderDash:[4,4]},
+                }}
+            },
+            scales:{
+                x:{grid:CHART_GRID, ticks:{color:'#64748B',font:{size:10}}},
+                y:{grid:CHART_GRID, ticks:{color:'#64748B',font:{size:10}},min:0,max:1},
+            }
+        }
+    });
+
+    // Cluster donut
+    const clCtx = document.getElementById('clusterChart').getContext('2d');
+    new Chart(clCtx,{
+        type:'doughnut',
+        data:{
+            labels: CLUSTER_DIST.map(c=>c.name),
+            datasets:[{data:CLUSTER_DIST.map(c=>c.value), backgroundColor:CLUSTER_DIST.map(c=>c.color), borderColor:'#0A0F1E', borderWidth:3, hoverOffset:4}]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            cutout:'62%',
+            plugins:{legend:{display:false}, tooltip:{...CHART_TOOLTIP}}
+        }
+    });
+
+    // Cluster list
+    document.getElementById('clusterList').innerHTML = CLUSTER_DIST.map(c=>`
+        <div class="cluster-row">
+            <div class="cluster-row-left">
+                <span class="dot" style="background:${c.color}"></span>
+                <span style="color:#CBD5E1;font-weight:500">${c.name}</span>
+            </div>
+            <div class="cluster-row-right">
+                <div class="cluster-bar-track"><div class="cluster-bar-fill" style="width:${(c.value/32)*100}%;background:${c.color}"></div></div>
+                <span class="cluster-row-count">${c.value} wells</span>
+            </div>
+        </div>
+    `).join('');
+
+    // Ticket badges
+    const crit = TICKETS.filter(t=>t.severity==='CRITICAL').length;
+    const warn = TICKETS.filter(t=>t.severity==='WARNING').length;
+    document.getElementById('ticketBadges').innerHTML=`
+        <span class="badge badge-critical">${crit} CRITICAL</span>
+        <span class="badge badge-warning">${warn} WARNING</span>
+    `;
+
+    // Ticket table
+    document.getElementById('ticketBody').innerHTML = TICKETS.slice(0,5).map(t=>`
+        <tr>
+            <td class="td-mono">${t.ticketId.slice(0,8)}…</td>
+            <td class="td-well">${t.wellId}</td>
+            <td>${severityBadge(t.severity)}</td>
+            <td><span class="text-mono fw-600" style="color:${severityColor(t.severity)}">${t.pLPO.toFixed(3)}</span></td>
+            <td>${recPill(t.recommendation)}</td>
+            <td>${statusBadge(t.status)}</td>
+            <td class="td-mono">${t.timestamp}</td>
+        </tr>
+    `).join('');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WELLSENSE · Wells</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+        <div class="page space-y">
+
+            <!-- Header -->
+            <header class="page-header fade-up">
+                <div class="eyebrow">${''/* filled by JS */}</div>
+                <h1>Well Portfolio</h1>
+                <p>Bekapai Field · Click any card to expand full sensor snapshot</p>
+            </header>
+            <div id="headerEyebrow" style="display:none"></div>
+
+            <!-- Stats row -->
+            <div class="stats-row delay-1" id="statsRow"></div>
+
+            <!-- Filters -->
+            <div class="flex" style="flex-wrap:wrap;gap:12px;align-items:center" id="filtersRow">
+                <div class="filter-bar" id="sevFilter"></div>
+                <div class="filter-bar" id="clusterFilter"></div>
+                <div class="showing-count ml-auto" id="showingCount"></div>
+            </div>
+
+            <!-- Wells grid -->
+            <div class="wells-grid delay-2" id="wellsGrid"></div>
+
+        </div>
+    </main>
+</div>
+<script src="js/app.js"></script>
+<script>
+let filterSev = 'ALL', filterCluster = 'ALL';
+
+function renderWells(){
+    const filtered = WELLS.filter(w=>
+        (filterSev==='ALL'||w.severity===filterSev)&&
+        (filterCluster==='ALL'||w.cluster===filterCluster)
+    );
+    document.getElementById('showingCount').innerHTML=`Showing <b>${filtered.length}</b> of ${WELLS.length} wells`;
+
+    if(filtered.length===0){
+        document.getElementById('wellsGrid').innerHTML=`<div class="dashed-empty" style="grid-column:1/-1">No wells match the selected filters.</div>`;
+        return;
+    }
+
+    document.getElementById('wellsGrid').innerHTML = filtered.map(w=>{
+        const color = severityColor(w.severity);
+        const sevCls = w.severity==='CRITICAL'?'critical':w.severity==='WARNING'?'warning':'normal';
+        return `
+        <div class="well-card ${sevCls}" onclick="toggleExpand('${w.wellId}')">
+            <div class="well-top">
+                <div>
+                    <div class="well-zone">${ICONS.mappin} Zone ${w.zone} · ${w.field}</div>
+                    <div class="well-id">${w.wellId}</div>
+                </div>
+                <div class="well-badges">
+                    ${severityBadge(w.severity)}
+                    ${clusterBadge(w.cluster)}
+                </div>
+            </div>
+            <div class="gauge-row">
+                ${arcGaugeSVG(w.pLPO, 96)}
+                <div class="sparkline-block">
+                    <span class="spark-label">7-day trend</span>
+                    ${sparklineSVG(w.trend, color)}
+                    <span class="text-mono" style="font-size:10px;color:${color}">${w.trend[w.trend.length-1].toFixed(3)}</span>
+                </div>
+            </div>
+            <div class="sensor-strip">
+                <div class="sensor-mini">
+                    <div class="sensor-mini-label">${ICONS.gauge} WHP</div>
+                    <div class="sensor-mini-value">${w.sensors.whp} <span class="sensor-mini-unit">psi</span></div>
+                </div>
+                <div class="sensor-mini">
+                    <div class="sensor-mini-label">${ICONS.thermometer} WHT</div>
+                    <div class="sensor-mini-value">${w.sensors.wht} <span class="sensor-mini-unit">°C</span></div>
+                </div>
+                <div class="sensor-mini">
+                    <div class="sensor-mini-label">${ICONS.droplets} Flow</div>
+                    <div class="sensor-mini-value">${w.sensors.flow} <span class="sensor-mini-unit">bbl</span></div>
+                </div>
+            </div>
+            <div class="well-expand" id="expand-${w.wellId}">
+                <div class="expand-title">Full Sensor Snapshot</div>
+                <div class="sensor-table">
+                    ${Object.keys(SENSOR_LABELS).map(k=>`
+                    <div class="sensor-row">
+                        <span class="sensor-row-label">${SENSOR_LABELS[k]}</span>
+                        <span class="sensor-row-val">${w.sensors[k]} <span style="color:#64748B;font-size:10px">${SENSOR_UNITS[k]}</span></span>
+                    </div>`).join('')}
+                </div>
+                <div style="text-align:right;font-size:10px;color:#64748B;margin-top:6px">Updated: ${w.lastUpdate}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleExpand(wellId){
+    const el = document.getElementById(`expand-${wellId}`);
+    if(el) el.classList.toggle('open');
+}
+
+function setFilter(type, val){
+    if(type==='sev') filterSev=val;
+    else filterCluster=val;
+    renderFilters();
+    renderWells();
+}
+
+function renderFilters(){
+    const sevOptions=['ALL','CRITICAL','WARNING','NORMAL'];
+    document.getElementById('sevFilter').innerHTML = sevOptions.map(s=>`
+        <button class="filter-btn${filterSev===s?' active':''}" onclick="setFilter('sev','${s}')">${s==='ALL'?'All Severity':s}</button>
+    `).join('');
+
+    const clOptions=[['ALL','All Clusters'],['HIGH_RISK','High Risk'],['MODERATE','Moderate'],['STABLE','Stable']];
+    document.getElementById('clusterFilter').innerHTML = clOptions.map(([v,l])=>`
+        <button class="filter-btn${filterCluster===v?' active':''}" onclick="setFilter('cluster','${v}')">${l}</button>
+    `).join('');
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    initSidebar('wells.html');
+
+    // Header eyebrow (done via direct DOM since JS fills it)
+    document.querySelector('.page-header .eyebrow') || (() => {})();
+    const hdr = document.querySelector('.page-header');
+    const eyebrow = hdr.querySelector('h1');
+    const div = document.createElement('div');
+    div.className='eyebrow';
+    div.innerHTML=`${ICONS.wind} Fleet View · ${WELLS.length} Wells Instrumented`;
+    hdr.insertBefore(div, eyebrow);
+
+    // Stats
+    const critical = WELLS.filter(w=>w.severity==='CRITICAL').length;
+    const warning  = WELLS.filter(w=>w.severity==='WARNING').length;
+    const normal   = WELLS.filter(w=>w.severity==='NORMAL').length;
+    const highRisk = WELLS.filter(w=>w.cluster==='HIGH_RISK').length;
+    document.getElementById('statsRow').innerHTML=[
+        {label:'Critical',value:critical,color:'text-red'},
+        {label:'Warning', value:warning, color:'text-orange'},
+        {label:'Normal',  value:normal,  color:'text-green'},
+        {label:'High-Risk Cluster',value:highRisk,color:'text-red'},
+    ].map(s=>`<div class="stat-pill"><span class="text-muted">${s.label}: </span><b class="${s.color} text-mono">${s.value}</b></div>`).join('');
+
+    renderFilters();
+    renderWells();
+});
+</script>
+</body>
+</html>

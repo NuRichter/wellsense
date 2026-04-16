@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WELLSENSE · Analytics</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+        <div class="page space-y">
+
+            <!-- Header -->
+            <header class="page-header fade-up">
+                <h1>Analytics</h1>
+                <p>LSTM · K-Means · Isolation Forest · HITL Quality</p>
+            </header>
+
+            <!-- Model metric cards -->
+            <section class="metric-grid delay-1" id="metricGrid"></section>
+
+            <!-- Charts row -->
+            <section class="two-col delay-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-eyebrow">RT-LSTM · 24h Window</div>
+                            <div class="card-title">P(LPO) Signal Quality</div>
+                            <div class="card-desc">Three-well overlay · threshold reference lines</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="height:220px"><canvas id="plpoChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-eyebrow">K-Means · 5-Day Cycle</div>
+                            <div class="card-title">Cluster Migration</div>
+                            <div class="card-desc">Well population shift across risk clusters</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="height:220px"><canvas id="migrationChart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Heatmap + outliers + feedback -->
+            <section class="three-col delay-3">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-eyebrow">Isolation Forest · BKP-A03</div>
+                            <div class="card-title">Sensor Anomaly Heatmap</div>
+                            <div class="card-desc">10 sensors × 24 hours · anomaly score colour-coded</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="heatmap-wrap">
+                            <div class="heatmap-inner" id="heatmap"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-stack">
+                    <div class="card" style="flex:1">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-eyebrow">Isolation Forest · 7D</div>
+                                <div class="card-title">Daily Outlier Count</div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div style="height:160px"><canvas id="outlierChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-eyebrow">HITL Quality Guard</div>
+                                <div class="card-title">Feedback Loop Status</div>
+                            </div>
+                        </div>
+                        <div class="card-body" id="feedbackPanel"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <div class="flex gap-8 items-center text-muted fs-12 delay-4">
+                ${''/* filled by JS */}
+                <span id="retrain-label"></span>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+    initSidebar('analytics.html');
+    wsChartDefaults();
+
+    // Header eyebrow
+    const hdr = document.querySelector('.page-header');
+    const h1 = hdr.querySelector('h1');
+    const eyebrow = document.createElement('div');
+    eyebrow.className='eyebrow';
+    eyebrow.innerHTML=`${ICONS.brain} Model Insights · Cycle 4`;
+    hdr.insertBefore(eyebrow,h1);
+
+    // Metric cards
+    const metrics=[
+        {label:'Recall',    value:MODEL_METRICS.recall.toFixed(3),    sub:'True Positive Rate — zero missed CRITICAL', accent:'#1D9E75', icon:'shield'},
+        {label:'Precision', value:MODEL_METRICS.precision.toFixed(3), sub:'11% false-positive rate',                    accent:'#7B72E8', icon:'trending'},
+        {label:'F1 Score',  value:MODEL_METRICS.f1.toFixed(3),        sub:'Harmonic mean of precision & recall',        accent:'#F97316', icon:'brain'},
+        {label:'ROC-AUC',   value:MODEL_METRICS.rocAuc.toFixed(3),    sub:'Discriminative power across all thresholds', accent:'#DC2626', icon:'alertcircle'},
+    ];
+    document.getElementById('metricGrid').innerHTML = metrics.map(m=>`
+        <div class="metric-card card card-hover">
+            <div class="m-bar" style="background:${m.accent}"></div>
+            <div class="m-label" style="color:${m.accent}">${ICONS[m.icon]} <span style="color:#94A3B8">${m.label}</span></div>
+            <div class="m-value">${m.value}</div>
+            <div class="m-sub">${m.sub}</div>
+        </div>
+    `).join('');
+
+    // PLPO chart
+    new Chart(document.getElementById('plpoChart').getContext('2d'),{
+        type:'line',
+        data:{
+            labels:PLPO_24H.filter((_,i)=>i%4===0).map(d=>d.hour),
+            datasets:[
+                {label:'BKP-A03',data:PLPO_24H.filter((_,i)=>i%4===0).map(d=>d.a03),borderColor:'#DC2626',borderWidth:2,pointRadius:0,tension:.3},
+                {label:'BKP-B07',data:PLPO_24H.filter((_,i)=>i%4===0).map(d=>d.b07),borderColor:'#F97316',borderWidth:2,pointRadius:0,tension:.3},
+                {label:'BKP-C11',data:PLPO_24H.filter((_,i)=>i%4===0).map(d=>d.c11),borderColor:'#1D9E75',borderWidth:2,pointRadius:0,tension:.3},
+            ]
+        },
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{labels:{color:'#94A3B8',font:{size:11},boxWidth:12}},tooltip:{...CHART_TOOLTIP}},
+            scales:{
+                x:{grid:CHART_GRID,ticks:{color:'#64748B',font:{size:10}}},
+                y:{grid:CHART_GRID,ticks:{color:'#64748B',font:{size:10}},min:0,max:1},
+            }
+        }
+    });
+
+    // Cluster migration chart
+    new Chart(document.getElementById('migrationChart').getContext('2d'),{
+        type:'bar',
+        data:{
+            labels:CLUSTER_MIGRATION.map(d=>d.day),
+            datasets:[
+                {label:'High Risk',data:CLUSTER_MIGRATION.map(d=>d.HIGH_RISK),backgroundColor:'#DC2626',borderRadius:2},
+                {label:'Moderate', data:CLUSTER_MIGRATION.map(d=>d.MODERATE), backgroundColor:'#F97316',borderRadius:2},
+                {label:'Stable',   data:CLUSTER_MIGRATION.map(d=>d.STABLE),   backgroundColor:'#1D9E75',borderRadius:2},
+            ]
+        },
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{labels:{color:'#94A3B8',font:{size:11},boxWidth:12}},tooltip:{...CHART_TOOLTIP}},
+            scales:{
+                x:{grid:CHART_GRID,ticks:{color:'#64748B',font:{size:10}},stacked:false},
+                y:{grid:CHART_GRID,ticks:{color:'#64748B',font:{size:10}}},
+            }
+        }
+    });
+
+    // Heatmap
+    const heatmapEl = document.getElementById('heatmap');
+    const hours = Array.from({length:24},(_,i)=>i);
+
+    // Hour labels row
+    const hourRow = document.createElement('div');
+    hourRow.className='heatmap-hour-row';
+    [0,4,8,12,16,20].forEach(h=>{
+        const span=document.createElement('span');
+        span.textContent=`${String(h).padStart(2,'0')}:00`;
+        span.style.flex=`${4/24*100}%`;
+        hourRow.appendChild(span);
+    });
+    heatmapEl.appendChild(hourRow);
+
+    // Sensor rows
+    HEATMAP_SENSORS.forEach(sensor=>{
+        const row = document.createElement('div');
+        row.className='heatmap-row';
+        const label=document.createElement('div');
+        label.className='heatmap-sensor-label';
+        label.textContent=sensor;
+        row.appendChild(label);
+        const cells=document.createElement('div');
+        cells.className='heatmap-cells';
+        const data=HEATMAP_A03[sensor];
+        data.forEach(z=>{
+            const cell=document.createElement('div');
+            cell.className='heatmap-cell';
+            const r=Math.round(z*220), g=Math.round((1-z)*80*(z<0.5?1:0)), b=Math.round((1-z)*40);
+            cell.style.background=`rgb(${10+r},${10+g},${10+b})`;
+            cell.style.opacity=(0.3+z*0.7).toFixed(2);
+            cell.title=`${sensor} h${data.indexOf(z)}: ${z.toFixed(3)}`;
+            cells.appendChild(cell);
+        });
+        row.appendChild(cells);
+        heatmapEl.appendChild(row);
+    });
+
+    // Heatmap legend
+    const leg=document.createElement('div');
+    leg.className='heatmap-legend';
+    leg.innerHTML='<span>Low anomaly</span>';
+    const legCells=document.createElement('div');
+    legCells.className='heatmap-legend-cells';
+    for(let i=0;i<10;i++){
+        const z=i/9;
+        const r=Math.round(z*220),g=Math.round((1-z)*80*(z<0.5?1:0)),b=Math.round((1-z)*40);
+        const c=document.createElement('div');
+        c.className='heatmap-legend-cell';
+        c.style.background=`rgb(${10+r},${10+g},${10+b})`;
+        c.style.opacity=(0.3+z*0.7).toFixed(2);
+        legCells.appendChild(c);
+    }
+    leg.appendChild(legCells);
+    leg.innerHTML+='<span>High anomaly</span>';
+    leg.insertBefore(legCells, leg.lastChild);
+    heatmapEl.appendChild(leg);
+
+    // Outlier chart
+    new Chart(document.getElementById('outlierChart').getContext('2d'),{
+        type:'bar',
+        data:{
+            labels:OUTLIERS_7D.map(d=>d.day),
+            datasets:[{label:'Outliers',data:OUTLIERS_7D.map(d=>d.count),backgroundColor:'#7B72E8',borderRadius:2}]
+        },
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false},tooltip:{...CHART_TOOLTIP}},
+            scales:{
+                x:{grid:CHART_GRID,ticks:{color:'#64748B',font:{size:10}}},
+                y:{grid:CHART_GRID,ticks:{color:'#64748B',font:{size:10}}},
+            }
+        }
+    });
+
+    // Feedback panel
+    const pct = MODEL_METRICS.rubberStamp*100;
+    const gaugeColor = pct>15?'#DC2626':pct>10?'#F97316':'#1D9E75';
+    document.getElementById('feedbackPanel').innerHTML=`
+        <div class="feedback-row">
+            <span class="feedback-key">Loop Status</span>
+            <span class="badge badge-normal">${MODEL_METRICS.feedbackLoop}</span>
+        </div>
+        <div class="feedback-row">
+            <span class="feedback-key">Last Retrain</span>
+            <span class="text-mono fs-11">${MODEL_METRICS.lastRetrain}</span>
+        </div>
+        <div class="feedback-row">
+            <span class="feedback-key">Rubber-stamp Risk</span>
+            <span class="text-mono fw-600" style="color:${gaugeColor}">${pct.toFixed(0)}%</span>
+        </div>
+        <div class="gauge-bar">
+            <div class="gauge-fill" style="width:${pct}%;background:${gaugeColor}"></div>
+        </div>
+        <div class="gauge-ticks"><span>0%</span><span>Threshold 15%</span><span>30%</span></div>
+        <p style="font-size:11px;color:#94A3B8;margin-top:10px;padding-top:10px;border-top:1px solid #1F2A44;line-height:1.6">
+            ${pct.toFixed(0)}% of current-cycle approvals flagged as potential rubber-stamp events by the anomaly guard. HITL compliance within acceptable bounds.
+        </p>
+    `;
+
+    // Footer
+    document.getElementById('retrain-label').innerHTML=`${ICONS.refresh} Last model retrain: <span class="text-mono" style="color:#CBD5E1;margin:0 4px">${MODEL_METRICS.lastRetrain}</span> · Next: Cycle 5 completion`;
+    document.getElementById('retrain-label').style.display='flex';
+    document.getElementById('retrain-label').style.alignItems='center';
+    document.getElementById('retrain-label').style.gap='6px';
+});
+</script>
+</body>
+</html>
